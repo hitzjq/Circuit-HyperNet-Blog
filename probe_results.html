@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Supporting Results: Atomic-Association Probes · Circuit-HyperNet</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+<body>
+  <a class="skip-link" href="#note-content">Skip to note</a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html#top"><svg viewBox="0 0 32 32" width="29" height="29" aria-hidden="true"><path d="M7 8 16 5 25 13 16 25 7 20 7 8 16 15 25 13M16 5v20M7 20l18-7" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor"><circle cx="7" cy="8" r="3"/><circle cx="16" cy="5" r="3"/><circle cx="25" cy="13" r="3"/><circle cx="16" cy="25" r="3"/><circle cx="7" cy="20" r="3"/></g><circle cx="16" cy="15" r="3" fill="#cb9d86"/></svg><span>Circuit-HyperNet</span></a>
+    <a class="header-link" href="index.html#analysis-1">Back to article <span aria-hidden="true">←</span></a>
+  </header>
+  <main class="note-main" id="note-content">
+    <div class="note-header">
+      <a class="note-back" href="index.html#analysis-1"><span aria-hidden="true">←</span> Back to Section 4.1 · Compositional analysis</a>
+      <h1>Supporting Results: Atomic-Association Probes</h1>
+      <div class="note-meta"><span>Supporting record for Circuit-HyperNet</span><span class="meta-divider" aria-hidden="true">·</span><a href="probe_results_en.md" download>Download Markdown <span aria-hidden="true">↓</span></a></div>
+    </div>
+    <article class="note-body article" aria-label="Supporting Results: Atomic-Association Probes">
+<p>This note documents the evaluation data, label definitions, readout locations, and training protocol behind the matched attention-probe comparison in Section 4.1.</p>
+<h2>Questions, labels, and metric</h2>
+<p>The compositional evaluation comprises 500 problems from each of the five composition families, totaling 2,500 problems. The underlying bank is formal Suite 1 (<code>performance_completion_20261103_v1/banks/suite2.pt</code>, seed <code>730000000000</code>).</p>
+<p>Because the atomic ID task teaches direct premise citation for proving a goal, whereas compositional distractor premises are goal-external variables, we evaluate on <strong>clean compositional inputs with ID distractors removed</strong> and score the three remaining atomic capabilities: <strong>AND</strong>, <strong>OR-L</strong>, and <strong>OR-R</strong>. Each cleaned query removes the two goal-external distractor variables and their premises while leaving the target goal and reference proof unchanged; circuit vectors are extracted from the corresponding cleaned inputs.</p>
+<p>Relevance labels are defined as follows: <strong>AND</strong> is marked relevant whenever the target goal contains a conjunction or the reference proof uses <code>And.intro</code> (including conjunctions in an unchosen disjunction branch); <strong>OR-L</strong> and <strong>OR-R</strong> follow the disjunction branch used in the reference proof.</p>
+<p>Success requires <strong>every relevant atomic candidate to score strictly above every irrelevant candidate</strong> (ties fail). Reported percentages represent atomic-association ranking success, not proof-generation accuracy. Each task row has denominator 500, and the overall row has denominator 2,500 (equal to the unweighted mean across the five families).</p>
+<h2>Matched attention-probe results</h2>
+<p>Clean compositional inputs (ID distractors removed; ID excluded from scoring), ranking success (%):</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Task</th>
+<th scope="col" style="text-align: right;">Base query</th>
+<th scope="col" style="text-align: right;">Circuit encoder</th>
+<th scope="col" style="text-align: right;">HN query</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>And-Or</td>
+<td style="text-align: right;">7.20</td>
+<td style="text-align: right;">33.20</td>
+<td style="text-align: right;">49.00</td>
+</tr>
+<tr>
+<td>Or-And</td>
+<td style="text-align: right;">9.40</td>
+<td style="text-align: right;">23.00</td>
+<td style="text-align: right;">16.40</td>
+</tr>
+<tr>
+<td>And-Or-And</td>
+<td style="text-align: right;">12.20</td>
+<td style="text-align: right;">29.60</td>
+<td style="text-align: right;">34.60</td>
+</tr>
+<tr>
+<td>Nested AND</td>
+<td style="text-align: right;">30.40</td>
+<td style="text-align: right;">55.20</td>
+<td style="text-align: right;">93.40</td>
+</tr>
+<tr>
+<td>Nested OR</td>
+<td style="text-align: right;">60.60</td>
+<td style="text-align: right;">65.40</td>
+<td style="text-align: right;">60.60</td>
+</tr>
+<tr>
+<td><strong>Overall (%)</strong></td>
+<td style="text-align: right;"><strong>23.96</strong></td>
+<td style="text-align: right;"><strong>41.28</strong></td>
+<td style="text-align: right;"><strong>50.80</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Exact overall success counts out of 2,500 are <strong>599</strong> (Base query), <strong>1,032</strong> (Circuit encoder), and <strong>1,270</strong> (HN query).</p>
+<h2>Encoders, readout locations, and probe training</h2>
+<p>All encoders are frozen checkpoints obtained after atomic-task training and prior to compositional continued training:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Representation</th>
+<th scope="col">Checkpoint</th>
+<th scope="col">Readout location</th>
+<th scope="col" style="text-align: right;">Native width</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base query</td>
+<td>Atomic-only base model, step 38000</td>
+<td>Final <code>transformer.ln_f</code> output before the language-model head, without LoRA</td>
+<td style="text-align: right;">2048</td>
+</tr>
+<tr>
+<td>Circuit encoder</td>
+<td>C-HyperNet (Circuit-HyperNet) <code>a_p03</code>, step 15258</td>
+<td><code>397 → 2048 → 1024</code> MLP output plus circuit type embedding; single token before fusion</td>
+<td style="text-align: right;">1024</td>
+</tr>
+<tr>
+<td>HN query</td>
+<td>C-HyperNet <code>a_p03</code>, step 15258</td>
+<td>Query encoder <code>output_norm</code> output (with query type embedding supplied before the Transformer), before fusion and parameter generation</td>
+<td style="text-align: right;">1024</td>
+</tr>
+</tbody>
+</table></div>
+<p>For each query representation, the attention probe reads the full valid-token sequence with its padding mask. For the single-token Circuit encoder representation, the attention weight is trivially 1 (it is not attention over graph nodes). Width-1024 representations are zero-padded to the common width of 2048 without trainable input adapters, so all attention heads share the same architecture and 541,825 parameters.</p>
+<p>Each probe head uses four learned atomic queries, key/value projections, layer normalization, and an MLP readout. Heads are trained on 1,200,000 atomic examples (300,000 per atomic task) for one epoch (4,688 batches at batch size 256) using seed 42, AdamW, learning rate <code>3e-4</code>, weight decay <code>1e-3</code>, and MSE loss against atomic one-hot labels. All encoders remain strictly frozen during probe fitting. Note that the underlying base model and HyperNet checkpoints have different training histories and budgets, so matching the probe architecture tests decodability from the resulting representations rather than isolating a single training factor.</p>
+<h2>Provenance</h2>
+<p>Repository-relative source records:</p>
+<ul>
+<li>Attention scores and text/label audit: <code>logs/analysis/2026-11-22/probe-id-and-correction-v3/local/summary.json</code> and <code>REPORT.md</code>.</li>
+<li>Complete-token probe run receipts: <code>logs/analysis/2026-11-22/lean-four-way-token-probe-v2/RUN_REPORT.md</code> and <code>completion_audit.json</code>.</li>
+<li>Probe configuration and implementation: <code>s5_lean_circuit/configs/four_way_token_probe_v2.json</code>; <code>s5_lean_circuit/scripts/four_way_token_probe/encoders.py</code> and <code>core.py</code>.</li>
+<li>Evaluation question record: <code>logs/analysis/2026-11-19/lean-atomic-probe-clean-suite1-v1/evaluation_rows.jsonl</code>.</li>
+</ul>
+<p>None of these analyses uses the revoked 2,000-questions-per-composition-family final-test bank.</p>
+    </article>
+  </main>
+  <footer class="site-footer"><span>Circuit-HyperNet</span><span>Supporting experimental record</span><a href="index.html#analysis-1">Back to article ←</a></footer>
+</body>
+</html>

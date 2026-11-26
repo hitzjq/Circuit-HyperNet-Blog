@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Supporting Results: Functional-Node Localization · Circuit-HyperNet</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+<body>
+  <a class="skip-link" href="#note-content">Skip to note</a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html#top"><svg viewBox="0 0 32 32" width="29" height="29" aria-hidden="true"><path d="M7 8 16 5 25 13 16 25 7 20 7 8 16 15 25 13M16 5v20M7 20l18-7" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor"><circle cx="7" cy="8" r="3"/><circle cx="16" cy="5" r="3"/><circle cx="25" cy="13" r="3"/><circle cx="16" cy="25" r="3"/><circle cx="7" cy="20" r="3"/></g><circle cx="16" cy="15" r="3" fill="#cb9d86"/></svg><span>Circuit-HyperNet</span></a>
+    <a class="header-link" href="index.html#analysis-2">Back to article <span aria-hidden="true">←</span></a>
+  </header>
+  <main class="note-main" id="note-content">
+    <div class="note-header">
+      <a class="note-back" href="index.html#analysis-2"><span aria-hidden="true">←</span> Back to Section 5 · Functional nodes</a>
+      <h1>Supporting Results: Functional-Node Localization</h1>
+      <div class="note-meta"><span>Supporting record for Circuit-HyperNet</span><span class="meta-divider" aria-hidden="true">·</span><a href="localization_results_en.md" download>Download Markdown <span aria-hidden="true">↓</span></a></div>
+    </div>
+    <article class="note-body article" aria-label="Supporting Results: Functional-Node Localization">
+<p>This note preserves the counts, definitions, uncertainty intervals, and selection history behind the four atomic-task comparisons in the blog. It translates the existing evidence summary dated November 17, 2026; it does not report a new experiment or a new selection round. The underlying results are pinned to source revision <code>91d82386a403d8dec598d2863916972683bab165</code>.</p>
+<h2>Definitions and exact counts</h2>
+<p>All four experiments perform actual ablations of MLP Transcoder nodes in the original base model checkpoint at step 38,000, without a LoRA. Each target-specific experiment evaluates 100 problems for each of the four atomic tasks, or 400 problems in total. Different targets use their own fresh problem banks. Within a target, direct and joint selection use the same evaluation bank, node count, and intervention.</p>
+<ul>
+<li><strong>L</strong>, target loss, is the number of correct target-task answers before intervention minus the number after intervention, divided by the number before intervention.</li>
+<li><strong>C</strong>, other-task change, is the sum of the absolute net changes in correct-answer counts for the other three tasks, divided by their total correct-answer count before intervention.</li>
+<li><strong>R = L/C</strong> is the selectivity ratio.</li>
+</ul>
+<p>For C, the absolute value is taken separately for each other task before summing. Improvements on one task cannot cancel declines on another, and an improvement on a control task should not be described as damage. These are net correct-count changes, not counts of individual answers that flip correctness.</p>
+<p>Each count vector below is ordered <strong>AND / OR-L / OR-R / ID</strong>. Every entry has a denominator of 100. K is the number of nodes in each selected group, matched between direct and joint selection within the row.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Target</th>
+<th scope="col" style="text-align: right;">K</th>
+<th scope="col">Before</th>
+<th scope="col">Direct</th>
+<th scope="col">Joint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AND</td>
+<td style="text-align: right;">1377</td>
+<td>34 / 34 / 39 / 65</td>
+<td>23 / 33 / 28 / 73</td>
+<td>22 / 33 / 28 / 71</td>
+</tr>
+<tr>
+<td>OR-L</td>
+<td style="text-align: right;">512</td>
+<td>35 / 41 / 36 / 72</td>
+<td>38 / 24 / 40 / 74</td>
+<td>37 / 23 / 40 / 74</td>
+</tr>
+<tr>
+<td>OR-R</td>
+<td style="text-align: right;">512</td>
+<td>46 / 31 / 25 / 68</td>
+<td>29 / 20 / 8 / 35</td>
+<td>48 / 36 / 12 / 48</td>
+</tr>
+<tr>
+<td>ID</td>
+<td style="text-align: right;">128</td>
+<td>35 / 38 / 35 / 72</td>
+<td>29 / 34 / 29 / 29</td>
+<td>34 / 36 / 29 / 31</td>
+</tr>
+</tbody>
+</table></div>
+<h2>Uncertainty in the ratio comparison</h2>
+<p>The current point estimate of R is higher for joint selection in all four cases. The ratio-advantage statistic is <strong>G = L_J × C_D − L_D × C_J</strong>, where J denotes joint selection and D denotes direct selection. Its paired 95% interval crosses zero in every case:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Target</th>
+<th scope="col" style="text-align: right;">Lower bound</th>
+<th scope="col" style="text-align: right;">Upper bound</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AND</td>
+<td style="text-align: right;">−0.000605134</td>
+<td style="text-align: right;">0.023409539</td>
+</tr>
+<tr>
+<td>OR-L</td>
+<td style="text-align: right;">−0.002826132</td>
+<td style="text-align: right;">0.014438441</td>
+</tr>
+<tr>
+<td>OR-R</td>
+<td style="text-align: right;">−0.003829641</td>
+<td style="text-align: right;">0.181820346</td>
+</tr>
+<tr>
+<td>ID</td>
+<td style="text-align: right;">−0.001030499</td>
+<td style="text-align: right;">0.067437328</td>
+</tr>
+</tbody>
+</table></div>
+<p>These results do not establish a statistically significant advantage. Because the four comparisons involve different target tasks and separate problem banks, the four-task mean ratio reported in the main text summarizes the overall trend across tasks rather than a pooled statistical test.</p>
+<h2>Selection history and limits for each case</h2>
+<p><strong>AND — <code>attempt_001</code>.</strong> Joint selection has L = 35.29%, below the 40% quality target. The HyperNet functional threshold was met, but the complete pipeline did not meet all its targets. Counts come from the completed <code>formal_metrics.json</code> record.</p>
+<p><strong>OR-L — <code>attempt_008</code>.</strong> The table reports the latest attempt. The ledger contains six confirmation entries, including <code>attempt_004</code>, which was frozen or only partially executed. Earlier completed confirmations 001, 003, 005, and 007 did not show a ratio advantage. The latest result must therefore not be presented as success on the first confirmation. Retired problem banks could subsequently enter development, but the bank for attempt 008 was not used to select groups in that round. Counts come from its <code>formal_metrics.json</code> record.</p>
+<p>The R values for all completed OR-L confirmations are:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Attempt</th>
+<th scope="col" style="text-align: right;">Direct R</th>
+<th scope="col" style="text-align: right;">Joint R</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>001</td>
+<td style="text-align: right;">14.1053</td>
+<td style="text-align: right;">7.0526</td>
+</tr>
+<tr>
+<td>003</td>
+<td style="text-align: right;">3.8636</td>
+<td style="text-align: right;">3.8636</td>
+</tr>
+<tr>
+<td>005</td>
+<td style="text-align: right;">28.8736</td>
+<td style="text-align: right;">17.3241</td>
+</tr>
+<tr>
+<td>007</td>
+<td style="text-align: right;">5.5611</td>
+<td style="text-align: right;">5.5611</td>
+</tr>
+<tr>
+<td>008</td>
+<td style="text-align: right;">6.5881</td>
+<td style="text-align: right;">7.8476</td>
+</tr>
+</tbody>
+</table></div>
+<p>These are direct-versus-joint comparisons from separate confirmation attempts, not points on a training curve for one model.</p>
+<p><strong>OR-R — <code>attempt_001</code>, completed formal evaluation.</strong> This case uses an authorized exploratory HyperNet readout. On fresh problems, the HyperNet intervention produced L = 28.95% and C = 13.70%, below the 40% target-loss threshold. The base-model comparison met the ratio-advantage and joint-L quality targets, but the complete pipeline is recorded as <code>chain_positive=false</code>. Counts come from the completed <code>formal_summary.json</code> in the formal evaluation, not the earlier top-level failure summary. One environment recovery occurred before fresh-problem generation; it did not reopen selection and does not count as another scientific confirmation round.</p>
+<p><strong>ID — <code>attempt_001</code>, completed formal evaluation.</strong> The direct baseline's development selection used <code>historical_seed_fill</code>, inheriting the historical <code>hypernet_top16</code> seed. This comparison measures the additional benefit of the current SAE readout; the direct baseline cannot be described as a from-scratch control with no HyperNet information. This provenance is recorded in the frozen configuration. Counts come from the completed <code>formal_result.json</code> record.</p>
+<p>AND, OR-R, and ID each have one completed formal confirmation. None of the results in this note comes from the revoked final-test bank with 2,000 questions per composition family.</p>
+    </article>
+  </main>
+  <footer class="site-footer"><span>Circuit-HyperNet</span><span>Supporting experimental record</span><a href="index.html#analysis-2">Back to article ←</a></footer>
+</body>
+</html>

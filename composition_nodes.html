@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Supporting Results: Interventions on HyperNet Compositional Nodes · Circuit-HyperNet</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+<body>
+  <a class="skip-link" href="#note-content">Skip to note</a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html#top"><svg viewBox="0 0 32 32" width="29" height="29" aria-hidden="true"><path d="M7 8 16 5 25 13 16 25 7 20 7 8 16 15 25 13M16 5v20M7 20l18-7" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor"><circle cx="7" cy="8" r="3"/><circle cx="16" cy="5" r="3"/><circle cx="25" cy="13" r="3"/><circle cx="16" cy="25" r="3"/><circle cx="7" cy="20" r="3"/></g><circle cx="16" cy="15" r="3" fill="#cb9d86"/></svg><span>Circuit-HyperNet</span></a>
+    <a class="header-link" href="index.html#analysis-1">Back to article <span aria-hidden="true">←</span></a>
+  </header>
+  <main class="note-main" id="note-content">
+    <div class="note-header">
+      <a class="note-back" href="index.html#analysis-1"><span aria-hidden="true">←</span> Back to Section 4.2 · Compositional analysis</a>
+      <h1>Supporting Results: Interventions on HyperNet Compositional Nodes</h1>
+      <div class="note-meta"><span>Supporting record for Circuit-HyperNet</span><span class="meta-divider" aria-hidden="true">·</span><a href="composition_nodes_en.md" download>Download Markdown <span aria-hidden="true">↓</span></a></div>
+    </div>
+    <article class="note-body article" aria-label="Supporting Results: Interventions on HyperNet Compositional Nodes">
+<p>Following the discussion on November 21, 2026, this note preserves the full text, numbers, and experimental records for the atomic stage and the And-Or and Nested OR settings. Section 4.2 of the main article again summarizes the two comparisons with matched node counts after further compositional training. The full results remain here; the atomic-stage results have not been restored to the main text.</p>
+<h2>Node interventions: which nodes support compositional reasoning?</h2>
+<p>In the main Lean experiments, C-HyperNet (short for Circuit-HyperNet) has higher mean accuracy on unseen compositions than Query-only, with the advantage coming primarily from And-Or. We next ask how this difference appears inside the HyperNet that generates LoRA. If particular nodes support a specific form of compositional reasoning, weakening them should reduce performance on that composition while having smaller effects on atomic tasks and other compositions. We compare the two HyperNets at the atomic training stage and after further compositional training with either And-Or or Nested OR held out.</p>
+<p>We first collect intermediate activations during HyperNet parameter generation and train a <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2309.08600">sparse autoencoder (SAE)</a> on them, approximately representing each hidden state as a sum of a small number of active features. A “node” here is an SAE feature at a particular HyperNet location. We select candidates using task-relevant activation and attribution signals. During validation, we freeze model weights and subtract a specified fraction of the selected nodes' decoded contributions from the original hidden state, retaining the other features and the component not reconstructed by the SAE.</p>
+<p>We then continue running HyperNet to regenerate LoRA and have the base model answer the same problems using that LoRA. A substantial decline on the target composition, accompanied by smaller effects on atomic and other composition tasks, indicates that these nodes provide relatively concentrated support for the target compositional capability. The functional conclusion concerns the joint intervention on the selected nodes.</p>
+<h4>Atomic training stage</h4>
+<p>We first ask whether, after training on atomic supervision alone, we can find a group of HyperNet nodes whose attenuation substantially reduces the total number of correct compositional OOD answers while causing only a small change in the total number of correct atomic answers. For each candidate, we fix the node set and attenuation fraction and apply the same intervention to every evaluation problem. We use the existing development bank: 500 And-Or and 500 Nested OR problems, totaling 1,000 compositional OOD problems, plus 500 problems from each of four atomic tasks, totaling 2,000 atomic problems.</p>
+<p>Throughout this section, <strong>OOD loss L</strong> is calculated as (total correct before intervention − total correct after intervention) / total correct before intervention. <strong>Atomic change ΔA</strong> is (total correct after intervention − total correct before intervention) / total correct before intervention; positive values indicate improvement and negative values indicate decline. Both are reported as percentages.</p>
+<p>The change-magnitude ratio is <strong>R = |L| / |ΔA|</strong>: the absolute relative compositional change divided by the absolute relative atomic change. A larger R means that compositional performance changes more relative to atomic performance. The direction of each change must be read from the signs in the preceding columns and the correct-answer counts. We calculate ratios from the raw counts to avoid rounding errors from the displayed percentages. When atomic change is zero, R is reported as NA.</p>
+<p><strong>Matched node counts: 256 nodes, with separately chosen attenuation fractions</strong></p>
+<p>We select 256 nodes in the block11 residual of each HyperNet, using the same ranking rule: mean activation on And-Or minus 0.5 times mean activation across the four atomic tasks. Each model uses its own SAE dictionary, and its fixed node group is applied to all six tasks.</p>
+<p>The attenuation fraction specifies how much of the selected nodes' contribution is subtracted from the HyperNet hidden state. Here, C-HyperNet uses 50% attenuation, retaining half the contribution, while Query-only uses 25% attenuation, retaining three quarters. Each model applies its fixed fraction across all parameter slots, then regenerates LoRA and evaluates the base model's answers.</p>
+<p>Correct-answer counts, before → after intervention:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">Attenuation</th>
+<th scope="col" style="text-align: right;">OOD / 1000</th>
+<th scope="col" style="text-align: right;">Atomic / 2000</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">50%</td>
+<td style="text-align: right;">150 → 113</td>
+<td style="text-align: right;">1410 → 1383</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">25%</td>
+<td style="text-align: right;">38 → 31</td>
+<td style="text-align: right;">1328 → 1359</td>
+</tr>
+</tbody>
+</table></div>
+<p>Relative changes and ratios:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">OOD loss (%)</th>
+<th scope="col" style="text-align: right;">Atomic change (%)</th>
+<th scope="col" style="text-align: right;">R (magnitude ratio)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">24.67</td>
+<td style="text-align: right;">−1.91</td>
+<td style="text-align: right;">12.88</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">18.42</td>
+<td style="text-align: right;">+2.33</td>
+<td style="text-align: right;">7.89</td>
+</tr>
+</tbody>
+</table></div>
+<p>Both interventions reduce the total compositional score, while the aggregate atomic changes are relatively small but differ in direction: C-HyperNet declines slightly, whereas Query-only improves.</p>
+<p>Looking at individual families, C-HyperNet's correct And-Or answers fall from 88 to 58 and Nested OR answers from 62 to 55, so both compositions decline. Query-only's And-Or count falls from 22 to 5, but its Nested OR count rises from 16 to 26; its net compositional decline therefore includes cancellation between the two tasks. Gains and losses can also cancel in the aggregate across the four atomic tasks. A small aggregate change does not mean every atomic capability changes only slightly.</p>
+<p>C-HyperNet has a higher R, but Query-only's total atomic score actually improves, so the ratio alone cannot determine which node group is better. Together with the different attenuation fractions, this means the result demonstrates different effects of the selected nodes on compositional and atomic performance; it does not establish that C-HyperNet's nodes are inherently stronger.</p>
+<p>This comparison matches node count, location, and candidate ranking, but does not match intervention strength or actual perturbation magnitude. Node search and reporting use the same development bank. Other attenuation strengths were evaluated only for a preselected subset of candidates. The complete experimental record is identified by the repository path <code>logs/analysis/2026-11-17/lean-stage1-composition-budget-v1/delivery.md</code>. We next compare the effects of compositional nodes inside the two HyperNets after further compositional training.</p>
+<h4>Further compositional training: And-Or held out</h4>
+<p>We next examine how HyperNet nodes support reasoning on unseen compositions after further training on compositional tasks. In this setting, And-Or is held out while HyperNet continues learning the other four composition families and retains atomic training. We locate And-Or-related nodes, freeze the model weights, subtract their full decoded contributions, and compare performance on And-Or, the four seen compositions, and the four atomic tasks. Both node search and intervention evaluation use the existing development bank, with 500 problems per task.</p>
+<p>To match node counts, we compare interventions on 128 nodes in each HyperNet. C-HyperNet's nodes are in block0 cross-attention, while Query-only's are in the block0 residual. Both interventions fully subtract the selected nodes' decoded contributions across all 272 parameter slots and evaluate the same problems from all nine task families. Each model's node set remains fixed across every problem.</p>
+<p>Correct-answer counts, before → after intervention:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">And-Or / 500</th>
+<th scope="col" style="text-align: right;">Seen compositions / 2000</th>
+<th scope="col" style="text-align: right;">Atomic / 2000</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">221 → 78</td>
+<td style="text-align: right;">1743 → 1739</td>
+<td style="text-align: right;">1538 → 1536</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">106 → 62</td>
+<td style="text-align: right;">1406 → 1405</td>
+<td style="text-align: right;">1426 → 1433</td>
+</tr>
+</tbody>
+</table></div>
+<p>Relative changes and ratios:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">OOD loss (%)</th>
+<th scope="col" style="text-align: right;">Atomic change (%)</th>
+<th scope="col" style="text-align: right;">R (magnitude ratio)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">64.71</td>
+<td style="text-align: right;">−0.13</td>
+<td style="text-align: right;">497.59</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">41.51</td>
+<td style="text-align: right;">+0.49</td>
+<td style="text-align: right;">84.56</td>
+</tr>
+</tbody>
+</table></div>
+<p>After subtracting C-HyperNet's candidate nodes, And-Or accuracy falls from 44.2% to 15.6%, while aggregate performance on seen compositions and atomic tasks is largely preserved. With the same node count and full ablation, C-HyperNet's candidates produce a larger absolute and relative OOD decline than Query-only's, together with a smaller aggregate atomic change. Across individual tasks, C-HyperNet's largest decline on a seen composition is 0.6 percentage points, and its most adverse atomic change is −0.4 percentage points, indicating relatively concentrated support for unseen And-Or.</p>
+<p>The large R values mainly reflect the very small aggregate atomic changes: C-HyperNet answers 2 fewer atomic problems correctly, whereas Query-only answers 7 more correctly. The ratios should be interpreted alongside the actual target-task declines. This comparison measures the joint effect of the selected node sets. Their locations differ, and their actual perturbation magnitudes are not matched.</p>
+<h4>Further compositional training: Nested OR held out</h4>
+<p>With Nested OR held out, we again compare equal-sized node sets. Both HyperNets continue learning the other four composition families while retaining atomic training. We then locate 8 nodes in each model, freeze model weights, subtract the nodes' full decoded contributions, and evaluate unseen Nested OR, the four seen compositions, and the four atomic tasks. We use the existing development bank, with 500 problems per task.</p>
+<p>C-HyperNet's 8 nodes are distributed across the block0 and block10 residuals, with 5 and 3 nodes respectively. Query-only's 8 nodes are distributed across the block0, block5, and block10 residuals, with 3, 3, and 2 nodes respectively. Both models apply fixed node sets and intervention strengths across all parameter slots.</p>
+<p>Correct-answer counts, before → after intervention:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">Nested OR / 500</th>
+<th scope="col" style="text-align: right;">Seen compositions / 2000</th>
+<th scope="col" style="text-align: right;">Atomic / 2000</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">112 → 73</td>
+<td style="text-align: right;">1609 → 1551</td>
+<td style="text-align: right;">1511 → 1480</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">95 → 84</td>
+<td style="text-align: right;">1624 → 1563</td>
+<td style="text-align: right;">1469 → 1484</td>
+</tr>
+</tbody>
+</table></div>
+<p>Relative changes and ratios:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">OOD loss (%)</th>
+<th scope="col" style="text-align: right;">Atomic change (%)</th>
+<th scope="col" style="text-align: right;">R (magnitude ratio)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-HyperNet</td>
+<td style="text-align: right;">34.82</td>
+<td style="text-align: right;">−2.05</td>
+<td style="text-align: right;">16.97</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">11.58</td>
+<td style="text-align: right;">+1.02</td>
+<td style="text-align: right;">11.34</td>
+</tr>
+</tbody>
+</table></div>
+<p>In this 8-versus-8 comparison with full ablation, C-HyperNet's candidates have a larger absolute and relative effect on Nested OR. Mean accuracy on seen compositions falls by 2.90 and 3.05 percentage points, respectively, indicating similar aggregate effects there.</p>
+<p>There is a trade-off in atomic capability: C-HyperNet's aggregate atomic score falls, while Query-only's improves. Although C-HyperNet has a higher R, this directional difference remains relevant to interpretation. The results support a stronger effect of the tested C-HyperNet nodes on the target composition, while also showing weaker preservation of atomic capability than for this Query-only candidate group. Node count and deletion fraction are matched, but node locations and actual perturbation magnitudes may still differ.</p>
+<p>The analysis above concerns nodes within HyperNet that support compositional reasoning. The next analysis turns to the base model and asks whether HyperNet signals can help locate nodes associated with a target function.</p>
+    </article>
+  </main>
+  <footer class="site-footer"><span>Circuit-HyperNet</span><span>Supporting experimental record</span><a href="index.html#analysis-1">Back to article ←</a></footer>
+</body>
+</html>

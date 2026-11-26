@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Circuit-HyperNet (C-HyperNet) learns per-query LoRA updates from internal computation, with experiments on Lean compositional reasoning, ARC-AGI-1, and functional-node localization.">
+  <meta property="og:title" content="Circuit-HyperNet: Guiding parameter generation and compositional reasoning with internal computation">
+  <meta property="og:description" content="Learning per-query parameter updates from the computation behind a model's first answer.">
+  <meta property="og:type" content="article">
+  <title>Circuit-HyperNet: Guiding parameter generation and compositional reasoning with internal computation</title>
+  <meta name="citation_title" content="Circuit-HyperNet: Guiding parameter generation and compositional reasoning with internal computation">
+  <meta name="citation_author" content="Junqi Zhang">
+  <meta name="citation_author" content="Jie Fu">
+  <meta name="author" content="Junqi Zhang, Jie Fu">
+  <link rel="alternate" type="application/pdf" href="Circuit-HyperNet.pdf" title="Download the research note">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=17">
+  <script src="main.js?v=4" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#abstract">Skip to article</a>
+  <header class="site-header">
+    <a class="wordmark" href="#top"><svg viewBox="0 0 32 32" width="29" height="29" aria-hidden="true"><path d="M7 8 16 5 25 13 16 25 7 20 7 8 16 15 25 13M16 5v20M7 20l18-7" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor"><circle cx="7" cy="8" r="3"/><circle cx="16" cy="5" r="3"/><circle cx="25" cy="13" r="3"/><circle cx="16" cy="25" r="3"/><circle cx="7" cy="20" r="3"/></g><circle cx="16" cy="15" r="3" fill="#cb9d86"/></svg><span>Circuit-HyperNet</span></a>
+    <a class="header-link" href="#abstract">Read the article <span aria-hidden="true">↗</span></a>
+  </header>
+  <main id="top">
+    <div class="hero">
+      <p class="eyebrow"><span class="accent-dot"></span> CIRCUIT-HYPERNET <span class="eyebrow-divider">/</span> RESEARCH BLOG</p>
+      <h1>Circuit-HyperNet: Guiding parameter generation and compositional reasoning with internal computation</h1>
+      <p class="hero-byline">Junqi Zhang, Jie Fu</p>
+      <p class="hero-deck">A small hypernetwork turns the computation behind a model’s first answer into a parameter update for its next attempt.</p>
+      <div class="hero-meta"><span>Research Note</span><span class="meta-divider" aria-hidden="true">·</span><span>Manuscript dated <time datetime="2026-11-22">November 22, 2026</time></span><span class="meta-divider" aria-hidden="true">·</span><a class="repo-link" href="https://github.com/hitzjq/Circuit-Hypernet" target="_blank" rel="noopener noreferrer" aria-label="View Circuit-HyperNet code on GitHub"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>Code</a><span class="meta-divider" aria-hidden="true">·</span><a class="repo-link" href="Circuit-HyperNet.pdf" download>Download PDF</a></div>
+    </div>
+    <div class="reading-layout">
+      <aside class="contents" aria-label="On this page"><p class="contents-label">IN THIS ARTICLE</p><a href="#abstract"><span class="nav-number">—</span><span>Abstract</span></a>
+<a href="#motivation"><span class="nav-number">01</span><span>Motivation</span></a>
+<a href="#method"><span class="nav-number">02</span><span>Method</span></a>
+<a href="#experiments"><span class="nav-number">03</span><span>Main experiments</span></a>
+<a href="#analysis-1"><span class="nav-number">04</span><span>Compositional analysis</span></a>
+<a href="#analysis-2"><span class="nav-number">05</span><span>Functional nodes</span></a>
+<a href="#related-work"><span class="nav-number">06</span><span>Related work</span></a>
+<a href="#discussion"><span class="nav-number">07</span><span>Discussion</span></a>
+<a href="#references"><span class="nav-number">—</span><span>References</span></a>
+<a href="#appendix"><span class="nav-number">—</span><span>Appendix</span></a><a class="download-link" href="article_en.md" download>Full article as Markdown <span aria-hidden="true">↓</span></a></aside>
+      <details class="mobile-contents"><summary>Contents</summary><nav aria-label="Article sections"><a href="#abstract"><span class="nav-number">—</span><span>Abstract</span></a>
+<a href="#motivation"><span class="nav-number">01</span><span>Motivation</span></a>
+<a href="#method"><span class="nav-number">02</span><span>Method</span></a>
+<a href="#experiments"><span class="nav-number">03</span><span>Main experiments</span></a>
+<a href="#analysis-1"><span class="nav-number">04</span><span>Compositional analysis</span></a>
+<a href="#analysis-2"><span class="nav-number">05</span><span>Functional nodes</span></a>
+<a href="#related-work"><span class="nav-number">06</span><span>Related work</span></a>
+<a href="#discussion"><span class="nav-number">07</span><span>Discussion</span></a>
+<a href="#references"><span class="nav-number">—</span><span>References</span></a>
+<a href="#appendix"><span class="nav-number">—</span><span>Appendix</span></a></nav></details>
+      <article class="article" aria-label="Circuit-HyperNet research article"><section id="abstract" class="article-section filled-section" aria-label="Abstract"><div class="section-heading"><h2>Abstract</h2></div><p>Using one neural network to generate or modify another model's parameters is becoming a new route to model adaptation and error correction (<a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=rkpACe1lx">Ha et al., 2017</a>; <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Charakorn et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Hypernetworks can generate adaptation parameters directly from task descriptions (<a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2023.acl-long.631/">Ivison et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Charakorn et al., 2025</a>), while  closed-weight language models can analyze a target model and edit its weights to repair specific failures (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Yet each approach leaves a gap: parameter generation based only on task descriptions cannot observe the target model's internal computation on the current problem, and weight repair for specific failures often requires a clearly identified symptom before the relevant weights can be located and modified.</p>
+<p>We introduce <strong>Circuit-HyperNet</strong> (<strong>C-HyperNet</strong>). With the base model frozen, we first extract a local attribution graph, or circuit (<a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Ameisen et al., 2025</a>), from its initial attempt at the current problem. This graph describes internal features and their influence relationships. We summarize it as a fixed-length vector (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Zhao et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2602.07080">He et al., 2026</a>) and feed it, together with the original problem (query), into a small hypernetwork (HyperNet). HyperNet generates a problem-specific low-rank parameter update (LoRA) (<a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=nZeVKeeFYf9">Hu et al., 2022</a>), which the base model uses for a second attempt. Our central intuition is that problems with different wording but shared logical structure often exhibit similar internal representation dynamics (<a target="_blank" rel="noopener noreferrer" href="https://proceedings.iclr.cc/paper_files/paper/2026/hash/7644353d580a9e027e0069d6480d971b-Abstract-Conference.html">Zhou et al., 2026</a>). These shared computational patterns may provide a basis for learning general rules for parameter correction and help connect compositional out-of-distribution (OOD) tasks—novel combinations of familiar atomic operations not encountered during training (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2210.03350">Press et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.18654">Dziri et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2509.25123">Yuan et al., 2025</a>)—to familiar atomic capabilities. Training uses the adapted model's prediction loss on the correct answer as supervision, without manual error-cause annotations or example-specific instructions about which parameters to modify. Conceptually, C-HyperNet offers a middle ground between static supervised fine-tuning (SFT) and gradient-based test-time fine-tuning (TTFT) by amortizing test-time adaptation into a single forward pass of an offline-trained hypernetwork, while linking mechanistic interpretability with capability improvement.</p>
+<p>On Lean logical proof tasks (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2607.18921v3#S3.SS1">Sheng &amp; Fu, 2026</a>), C-HyperNet raises mean atomic-task accuracy from 43.98% for the supervised fine-tuned base model to 71.00%. On unseen composition families held out during training, it achieves a five-fold mean OOD accuracy of 13.14%, substantially above a query-only hypernetwork (Query-only, 4.60%) and direct supervised fine-tuning (Direct SFT, 6.34%), and ahead of a hypernetwork that additionally reads static base-model weights (Raw-weight, 10.58%), with gains concentrated in specific composition families. On ARC-AGI-1 grid reasoning tasks (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1911.01547">Chollet, 2019</a>), directly applying the generated LoRA achieves performance close to supervised fine-tuning. For test-time fine-tuning (TTFT) (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1909.13231">Sun et al., 2020</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">Akyürek et al., 2025</a>) on the same supervised fine-tuned base model, replacing standard initialization with the generated LoRA further raises accuracy from 45.875% to 47.875%.</p>
+<p>Learning to read circuits also brings an unexpected analytical benefit: task-related responses to circuits inside HyperNet can serve as an additional signal for locating functional nodes in the base model. Combining these responses with conventional attribution and ablation evidence yields higher functional selectivity in preliminary experiments on all four atomic tasks: the selected nodes' effects are more concentrated on the target task. A model that learns to use circuits may, in turn, help us understand them.</p></section>
+<section id="motivation" class="article-section filled-section" aria-label="Motivation: how can internal computation guide parameter updates when a model gets an answer wrong?"><div class="section-heading"><h2><span class="section-number">01</span> Motivation: how can internal computation guide parameter updates when a model gets an answer wrong?</h2></div><p>Having one neural network generate or rewrite another neural network's parameters offers an intriguing way to improve and correct model capabilities (<a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=rkpACe1lx">Ha et al., 2017</a>; <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Charakorn et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Recent research has demonstrated its potential in two directions. Conditional hypernetworks generate adaptation parameters directly from natural-language task descriptions, as in <a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2023.acl-long.631/">HINT (Ivison et al., 2023)</a> and <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Text-to-LoRA</a> (Charakorn et al., 2025).  Closed-weight language-model agents instead inspect internal states and run repeated experiments to rewrite a target model's weights, as in <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Weight-Space Programming</a> (Takehi et al., 2026).</p>
+<p>MIT's experiment using  a closed-weight model to repair Qwen's weights (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>) illustrates the latter approach. On mathematics problems, Qwen sometimes repeats a stretch of reasoning until it exhausts its token budget without producing an answer. The researchers described this specific failure in the prompt, guiding  the closed-weight model to investigate Qwen's internal computation and repeatedly test weight edits on practice problems, ultimately mitigating the looping behavior (<a target="_blank" rel="noopener noreferrer" href="https://github.com/RikiyaT/lm_understand-logs/blob/main/exp8_math/runs/p50c/turns/t001/prompt.txt">initial experimental instructions</a>, 2026). Another contemporary study, iWSP, asks  a closed-weight model to write the weights of small Transformers from scratch, using task specifications, implementation hints, algorithmic knowledge, and evaluation feedback (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2611.18114v1#S2">iWSP paper</a> (Mehta et al., 2026) · <a target="_blank" rel="noopener noreferrer" href="https://github.com/csinva/weight-space-programming-autoresearch/blob/main/experiments/runs/opus55/gcd-three-digits-opus55-s2/program.md">experimental prompts and rules</a>, 2026). The resulting models can be understood step by step by reading the code that constructs their weights. However, because this procedure builds parameters from scratch, it does not readily extend to taking over and modifying an already trained, complex black-box network. If  the closed-weight model neither  possesses a capability nor can acquire it from feedback, the small model  is unlikely to acquire that capability through its generated weights either.</p>
+<p>Like that weight-editing experiment, we aim to <strong>correct a model's behavior using the computation that actually takes place inside it</strong>. <strong>The key distinction is that the Qwen weight-space programming experiment found a lasting patch to reuse, whereas C-HyperNet learns a rule for making per-query patches:</strong> once found, the Qwen loop-reduction edit stays in the weights with no need to diagnose each new question again; C-HyperNet instead targets situations where the useful edit depends on the question, and where correct answers are available for training even when nobody can say which reasoning step failed or which weights should change (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Many reasoning failures, however, do not  present an overt, single-point surface pathology: in the same study's control experiment on Gemma, where math failures were ordinary arithmetic and algebraic errors lacking a single isolated defect, targeted weight editing yielded minimal gains (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Often, we know only that the answer is wrong, with little indication of where the failure occurred: surface outputs and chain-of-thought rationales can fail to faithfully reflect the internal computation behind a prediction (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.04388">Turpin et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2307.13702">Lanham et al., 2023</a>) or pinpoint how a reasoning step went wrong (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Zhao et al., 2025</a>). For example, strong noise perturbations to internal representations may cause a model to emit garbled or meaningless text (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2605.10611v1#S2.SS1">Lin et al., 2026</a>). Such outputs give researchers little basis for identifying a clear failure mode, let alone precisely specifying which nodes to modify—and even in factual knowledge editing, prior work finds that causal localization of internal components does not reliably predict which weights are best to edit (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2301.04213">Hase et al., 2023</a>).</p>
+<p>This motivates a direction  in the spirit of <a target="_blank" rel="noopener noreferrer" href="https://www.cs.utexas.edu/~eunsol/courses/data/bitter_lesson.pdf">Sutton's Bitter Lesson (2019)</a>, which observes that general learning methods scaling with data and compute ultimately outperform approaches relying on human-encoded heuristics. In weight repair, asking a human to name a symptom, classify the failure mode, and guide which components to inspect embeds case-by-case diagnostic priors that do not scale when failures are subtle or distributed. Rather than encoding those diagnostic rules by hand, we shift the diagnosis-to-edit mapping into end-to-end learning: we  extract the computational graph of the model's reasoning, summarize it as a <strong>circuit vector</strong>, and give it together with the problem to another neural network, <strong>HyperNet</strong>. End-to-end supervision from many problem–answer pairs can then teach HyperNet to generate appropriate parameter updates for the base model from its internal computational features. (Our current fixed-length summary statistics still retain representation priors, so we view this as a pragmatic step in that direction rather than its endpoint.)</p>
+<figure class="story-figure" id="figure-story">
+  <div class="figure-toolbar"><span>From diagnosis to learned updates</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/circuit_story_en.svg" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/circuit_story_en.svg" width="1200" height="920" alt="Three scenarios linking internal nodes, model outputs, and parameter correction" decoding="async"></a>
+  <figcaption><p><em>Illustration: Three approaches to parameter correction (the frozen base model is labeled <code>Base</code> in the figure). (1) <strong>An explicit failure and targeted agent intervention:</strong> a human identifies a clear symptom, such as repeated reasoning, and guides an agent to locate and modify the relevant weights. (2) <strong>The difficulty of diagnosing ordinary failures:</strong> an incorrect or even garbled answer may reveal little about the internal fault or where to make a change. (3) <strong>Data-driven C-HyperNet:</strong> the circuit from the base model's first attempt is summarized as a vector and supplied with the query to HyperNet, which learns to generate per-query LoRA updates end to end from correct-answer supervision, without manually annotated error causes or specified nodes.</em></p></figcaption>
+</figure><p>Here, a <strong>circuit</strong> is a local attribution graph extracted from the base model's first attempt at the current problem. Its nodes represent internal features involved in that computation, and its directed edges describe the strength of their influence on subsequent computation and the final output (<a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Circuit Tracing</a>, Ameisen et al., 2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2510.09312v2#S4.SS4">CRV</a> (Zhao et al., 2025) and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2602.07080v1#S4.SS4">CodeCircuit</a> (He et al., 2026) have shown that attribution graphs contain signals that distinguish correct from incorrect reasoning or code, and can guide local feature-activation interventions. We build on this idea by feeding circuit vectors directly into a parameter generator. Beyond predicting correctness, we learn <strong>which LoRA updates across multiple layers to generate for a given problem and internal computation</strong>, allowing information from the computational graph to directly inform changes to the model's reasoning behavior.</p>
+<p>We explore three related questions:</p>
+<ol>
+<li><strong>Can shared computation across problems teach per-query correction without error-cause annotations?</strong> Research has found stable commonalities in  the evolution of representations across tasks with similar logical structure (<a target="_blank" rel="noopener noreferrer" href="https://proceedings.iclr.cc/paper_files/paper/2026/hash/7644353d580a9e027e0069d6480d971b-Abstract-Conference.html">Zhou et al., ICLR 2026</a>). If circuit vectors preserve this structure in a high-dimensional space—placing problems that rely on similar computation near one another, with systematic variation as the influence of key features changes—HyperNet may learn which patterns tend to accompany errors and which LoRA updates help correct them, using only correct-answer supervision. On the four Lean atomic tasks, this approach raises mean accuracy from 43.98% for the frozen base model to 71.00% (versus 69.00% for Query-only).</li>
+<li><strong>Can circuits connect  compositional OOD tasks to familiar atomic capabilities?</strong> In compositional OOD generalization (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2210.03350">Press et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.18654">Dziri et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2509.25123">Yuan et al., 2025</a>), test problems are built from familiar atomic components arranged into novel compositional structures held out from training. When such a  compositional problem takes an unfamiliar form, its wording alone may not make its relationship to previously learned tasks apparent. Even when the base model's first answer is wrong, it may have used internal computations resembling those of certain atomic tasks. If the circuit retains these clues, HyperNet may identify the atomic capabilities needed and generate a better-suited LoRA to help the base model combine them on its second attempt. We examine this idea through compositional transfer and five-fold OOD experiments on Lean (13.14% for C-HyperNet, 10.58% for Raw-weight, and 6.34% for Direct SFT), as well as initialization gains in ARC-AGI-1 test-time fine-tuning (TTFT; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1909.13231">Sun et al., 2020</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">Akyürek et al., 2025</a>; 45.875% → 47.875%).</li>
+<li><strong>Can a HyperNet that learns to use circuits also help us understand the base model?</strong> If HyperNet relies on task-related computation in the circuit to generate updates, this channel can also serve as an analytical tool. We perturb candidate nodes' contributions to the circuit, observe the responses of task-related nodes inside HyperNet, and combine this signal with the base model's own attribution and ablation results to select base-model nodes that support the target function. On fresh problems for the four atomic tasks, joint selection raises the mean functional-selectivity ratio from 3.62 for direct selection to 5.04.</li>
+</ol></section>
+<section id="method" class="article-section filled-section" aria-label="Method: how does the circuit participate in parameter generation?"><div class="section-heading"><h2><span class="section-number">02</span> Method: how does the circuit participate in parameter generation?</h2></div><figure class="story-figure" id="figure-method">
+  <div class="figure-toolbar"><span>Figure 1 · C-HyperNet workflow</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/method_overview.png" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/method_overview.png" width="1536" height="1024" alt="C-HyperNet workflow" decoding="async"></a>
+  <figcaption><p><em>Figure 1: C-HyperNet's two-pass inference loop (with the frozen base model labeled <code>Frozen Base model</code>). A circuit is extracted from the frozen base model's first attempt and summarized as a fixed-length vector. Together with the original query, it conditions HyperNet's generation of a per-query LoRA for a second attempt by the same base model. The 397 dimensions and 12 blocks shown correspond to the Lean implementation.</em></p></figcaption>
+</figure><p>C-HyperNet follows a two-pass inference procedure: <strong>first observe the internal computation, then generate a parameter update</strong> (Figure 1). Given a problem (query), the frozen base model makes an initial attempt without an adapter. We extract a local attribution graph from this computation and compress it into a fixed-length circuit vector. HyperNet then reads both the original query and the circuit vector to generate a set of <a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=nZeVKeeFYf9">LoRA parameters</a> (Hu et al., 2022) for that problem. Finally, we apply the LoRA to the base model, whose original weights remain frozen, and ask it to answer the same query again.</p>
+<h3>2.1 Extracting a circuit vector from inference</h3>
+<p>We use local attribution graphs to characterize an individual inference run (<a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Circuit Tracing</a>, Ameisen et al., 2025). A pretrained, frozen sparse <a target="_blank" rel="noopener noreferrer" href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/2b8f4db0464cc5b6e9d5e6bea4b9f308-Abstract-Conference.html">Transcoder</a> (Dunefsky et al., 2024) decomposes the base model's feed-forward computation into sparse feature contributions and a reconstruction residual. Feature activations and local derivatives are then used to estimate direct influence between nodes, and the graph is pruned by attribution importance (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2310.10348">Syed et al., 2024</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2403.19647">Marks et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Ameisen et al., 2025</a>).</p>
+<p>Because graph sizes vary across problems, we extract statistics of feature activity by layer, attribution-flow distributions, graph connectivity, and token positions, summarizing the graph as a fixed-length circuit vector, following the graph-summary approach of <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">CRV (Zhao et al., 2025)</a> and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2602.07080">CodeCircuit (He et al., 2026)</a>—397 dimensions in the Lean experiments. Extraction uses only the base model's own first answer and does not require access to the reference answer.</p>
+<h3>2.2 A parameter generator conditioned on query and circuit</h3>
+<figure class="story-figure" id="figure-architecture">
+  <div class="figure-toolbar"><span>Figure 2 · HyperNet architecture</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/hypernet_architecture.png" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/hypernet_architecture.png" width="1879" height="837" alt="HyperNet query and circuit encoders and parameter generator" decoding="async"></a>
+  <figcaption><p><em>Figure 2: HyperNet in the Lean implementation. A Transformer encodes the query, while an MLP maps the circuit vector to a token of the same width. The two are concatenated into a shared conditioning sequence. Parameter tokens serve as cross-attention queries (Q) over this sequence (K, V), and output heads generate LoRA factors for each target module.</em></p></figcaption>
+</figure><p>HyperNet brings together what the problem asks (the query) and how the base model just processed it (the circuit). In the Lean implementation (Figure 2), a Transformer encodes the query as a sequence of token representations, and an MLP maps the circuit vector to one token of the same dimensionality. Concatenating them creates a shared conditioning sequence. The parameter generator uses an architecture in the style of <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2603.07236">HY-WU</a> (Wu et al., 2026): it maintains learnable parameter tokens, each corresponding to a target LoRA parameter slot. These tokens coordinate through self-attention and read the shared conditioning sequence through cross-attention. After multiple layers of interaction, output heads generate low-rank factors A and B for each target linear layer in the base model. Their scaled product forms the weight update for the current query. This LoRA remains fixed throughout the second attempt and is generated anew for the next problem.</p>
+<h3>2.3 End-to-end training</h3>
+<p>During training, the base model and the circuit extractor are frozen. Only HyperNet is updated, including its query encoder, circuit encoder, parameter generator, and output heads. For each example, HyperNet generates LoRA parameters from the query and its circuit vector, applies them to the base model, and receives supervision from the adapted model's prediction loss on the correct answer—whether the adapter makes the reference answer more likely, rather than a label identifying any faulty step (with no reference answer needed at inference time). Although the base model's weights do not change, gradients pass through its computation and the generated LoRA back to HyperNet. We also penalize excessively large weight updates and cases where the adapted loss exceeds the original unadapted loss, to stabilize training and limit damage to existing capabilities.</p></section>
+<section id="experiments" class="article-section filled-section" aria-label="Main experiments: does circuit information improve reasoning and generalization?"><div class="section-heading"><h2><span class="section-number">03</span> Main experiments: does circuit information improve reasoning and generalization?</h2></div><p>We evaluate the method in stages. On Lean logic proofs, we first examine (1) per-query correction on learned atomic tasks, (2) zero-shot compositional transfer after training only on atomic tasks, and (3) five-fold OOD generalization after further training on compositions. We then extend the method to ARC-AGI-1 grid reasoning, testing both direct parameter generation and its use as a warm start for test-time fine-tuning (TTFT).</p>
+<h3>3.1 Lean: task construction, baselines, and evaluation protocol</h3>
+<p>We use <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2607.18921v3#S3.SS1">Sheng and Fu's generator for Lean logic tasks</a> (2026), expressed in Lean 4 proof syntax (<a target="_blank" rel="noopener noreferrer" href="https://doi.org/10.1007/978-3-030-79876-5_37">de Moura &amp; Ullrich, 2021</a>). Each problem provides a set of available premises and a goal to prove. The model must predict the first tactic, or proof command, that advances the proof. The task set comprises four atomic operations and five compositional goals (Figure 3):</p>
+<ul>
+<li><strong>Four atomic operations:</strong> <strong>AND</strong> constructs p ∧ q from p and q; <strong>OR-L</strong> derives p ∨ q from p; <strong>OR-R</strong> derives p ∨ q from q; and <strong>ID</strong> proves p by directly citing an existing premise p.</li>
+<li><strong>Five compositional goals:</strong> <strong>And-Or</strong>, (p ∧ q) ∨ r; <strong>Or-And</strong>, (p ∨ q) ∧ r; <strong>And-Or-And</strong>, (p ∧ q) ∨ (r ∧ s); <strong>Nested AND</strong>, (p ∧ q) ∧ r; and <strong>Nested OR</strong>, (p ∨ q) ∨ r.</li>
+</ul>
+<p>During data generation, the logical rules remain fixed, while proposition names, hypothesis names, and premise order are randomized. Distractor premises are also included to prevent memorization of fixed problem statements. All evaluations use greedy decoding and measure strict exact-match accuracy on the first tactic.</p>
+<figure class="story-figure" id="figure-lean-tasks">
+  <div class="figure-toolbar"><span>Figure 3 · Lean tasks</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/lean_tasks.png" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/lean_tasks.png" width="1536" height="1024" alt="Lean atomic operations, compositional tasks, and an example proof" decoding="async"></a>
+  <figcaption><p><em>Figure 3: The four atomic operations and five compositional goals in Lean, together with an And-Or proof that combines atomic operations: first constructing a conjunction with <code>And.intro</code>, then introducing a disjunction with <code>Or.inl</code>.</em></p></figcaption>
+</figure><p>All adaptation methods share the same base model, which has been supervised fine-tuned on the four atomic tasks. We compare four methods on this backbone:</p>
+<ul>
+<li><strong>Direct SFT</strong>, introduced at the compositional stage, continues fine-tuning the base-model weights directly.</li>
+<li><strong>Query-only HyperNet</strong> freezes the base model and generates per-query LoRA parameters from the problem text alone. This is the central control for measuring the added benefit of circuit information.</li>
+<li><strong>Raw-weight HyperNet</strong> freezes the base model and generates LoRA parameters from both the query and a representation of the base model's static weights, echoing weight-conditioned hypernetworks such as <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2512.08785v1#S3.SS3">LoFA (Hao et al., 2026)</a> and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2606.13971v3#S3.SS2">Prompt2Effect (Yang et al., 2026)</a>. This provides another way to condition on information about the model itself.</li>
+<li><strong>C-HyperNet</strong> freezes the base model and generates LoRA parameters from the query and the 397-dimensional circuit vector extracted from its first attempt at that problem.</li>
+</ul>
+<p>HyperNet training has two stages. The first uses supervised training on the four atomic tasks only. The second introduces selected compositional tasks and evaluates OOD generalization through five-fold leave-one-composition-family-out evaluation. Formal results are reported on two independently generated evaluation banks, Suite 1 and Suite 2. Each bank covers all 9 task families, with 500 problems per family. Atomic scores give equal weight to the four atomic families, and compositional scores give equal weight to the five compositional families. We then average the two suites with equal weight.</p>
+<h3>3.2 Atomic tasks: how effective is per-query parameter generation?</h3>
+<p>We begin with the most basic question: for task types that the model has already learned, can dynamically generating a LoRA for each new problem improve on the frozen backbone trained with atomic-task SFT?</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Method</th>
+<th scope="col" style="text-align: right;">Suite 1 (%)</th>
+<th scope="col" style="text-align: right;">Suite 2 (%)</th>
+<th scope="col" style="text-align: right;">Two-suite mean (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base model (atomic-task SFT)</td>
+<td style="text-align: right;">45.15</td>
+<td style="text-align: right;">42.80</td>
+<td style="text-align: right;">43.98</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">70.70</td>
+<td style="text-align: right;">67.30</td>
+<td style="text-align: right;">69.00</td>
+</tr>
+<tr>
+<td>Raw-weight</td>
+<td style="text-align: right;">66.15</td>
+<td style="text-align: right;">64.35</td>
+<td style="text-align: right;">65.25</td>
+</tr>
+<tr>
+<td><strong>C-HyperNet</strong></td>
+<td style="text-align: right;"><strong>72.45</strong></td>
+<td style="text-align: right;"><strong>69.55</strong></td>
+<td style="text-align: right;"><strong>71.00</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Dynamic LoRA generation produces substantial gains: all three HyperNets raise mean accuracy from the backbone's 43.98% to above 65%. C-HyperNet ranks first on both independent banks, with a mean of 71.00%. It exceeds Query-only, which reads only the problem text, by 2.00 percentage points, and Raw-weight, which reads static weights, by 5.75 percentage points. These results indicate that in this setting, even for familiar task types, conditioning on a summary of the base model's computation on the current problem outperforms using only the query or static weights.</p>
+<h3>3.3 Zero-shot compositional transfer after atomic-only training</h3>
+<p>We leave these first-stage models unchanged: none has encountered a compositional training example. We evaluate them directly on the five compositional tasks to examine the starting point for zero-shot transfer under each form of conditioning.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Model</th>
+<th scope="col" style="text-align: right;">Suite 1 (%)</th>
+<th scope="col" style="text-align: right;">Suite 2 (%)</th>
+<th scope="col" style="text-align: right;">Two-suite mean (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base model</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.06</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">2.44</td>
+<td style="text-align: right;">2.32</td>
+<td style="text-align: right;">2.38</td>
+</tr>
+<tr>
+<td>Raw-weight</td>
+<td style="text-align: right;">4.60</td>
+<td style="text-align: right;">3.92</td>
+<td style="text-align: right;">4.26</td>
+</tr>
+<tr>
+<td><strong>C-HyperNet</strong></td>
+<td style="text-align: right;"><strong>6.92</strong></td>
+<td style="text-align: right;"><strong>5.52</strong></td>
+<td style="text-align: right;"><strong>6.22</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Without adaptation, the base model scores almost zero on compositional problems: 0.06%. All three HyperNets show some transfer, with exactly the same ranking on both banks. C-HyperNet reaches 6.22%, exceeding Query-only by 3.84 percentage points and Raw-weight by nearly 2 percentage points. Absolute scores remain low, but this difference supports our intuition: even before any compositional supervision, circuit information is beginning to connect unfamiliar combinations with learned atomic capabilities.</p>
+<h3>3.4 OOD generalization after further compositional training</h3>
+<p>We next turn to the central test: after learning some ways of combining operations, can a model generalize to a composition family it has never seen during training (following staged atomic-to-compositional evaluation, <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2509.25123">Yuan et al., 2025</a>)? We use a five-fold leave-one-composition-family-out setup (Figure 4). Each fold starts from the same atomic-stage checkpoint for its method, continues training on four composition families, and is evaluated on the fifth, held-out family. To mitigate catastrophic forgetting of atomic capabilities, compositional training for all four methods replays atomic examples and adds a KL-divergence regularization term against each method's frozen atomic-stage output distribution (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1606.09282">Li &amp; Hoiem, 2016</a>), alongside supervision from the reference answers.</p>
+<figure class="story-figure" id="figure-lean-protocol">
+  <div class="figure-toolbar"><span>Figure 4 · Compositional training and evaluation</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/lean_eval_protocol.png" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/lean_eval_protocol.png" width="1774" height="887" alt="Five-fold leave-one-composition-family-out training and evaluation for HyperNet" decoding="async"></a>
+  <figcaption><p><em>Figure 4: The five-fold protocol for further compositional training and evaluation. All five folds of a method independently start from its same atomic checkpoint. Blue marks the four composition families used in training; orange marks the held-out OOD family. Within each formal evaluation suite, we first average OOD accuracy equally across the five folds, then take the mean across the two suites.</em></p></figcaption>
+</figure><div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Method</th>
+<th scope="col" style="text-align: right;">Validation (%)</th>
+<th scope="col" style="text-align: right;">Suite 1 OOD (%)</th>
+<th scope="col" style="text-align: right;">Suite 2 OOD (%)</th>
+<th scope="col" style="text-align: right;">OOD mean (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct SFT</td>
+<td style="text-align: right;">66.51</td>
+<td style="text-align: right;">7.24</td>
+<td style="text-align: right;">5.44</td>
+<td style="text-align: right;">6.34</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">74.44</td>
+<td style="text-align: right;">4.96</td>
+<td style="text-align: right;">4.24</td>
+<td style="text-align: right;">4.60</td>
+</tr>
+<tr>
+<td>Raw-weight</td>
+<td style="text-align: right;">80.01</td>
+<td style="text-align: right;">10.80</td>
+<td style="text-align: right;">10.36</td>
+<td style="text-align: right;">10.58</td>
+</tr>
+<tr>
+<td><strong>C-HyperNet</strong></td>
+<td style="text-align: right;"><strong>81.00</strong></td>
+<td style="text-align: right;"><strong>13.12</strong></td>
+<td style="text-align: right;"><strong>13.16</strong></td>
+<td style="text-align: right;"><strong>13.14</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Note: Validation is the equally weighted five-fold mean accuracy on the four seen composition families in the development set used for model selection. After fixing the selected models, we evaluate the held-out families on the two formal banks, reported as Suite 1 and Suite 2 OOD.</em></p>
+<p>The comparison reveals a clear pattern:</p>
+<ul>
+<li><strong>Conditioning only on the problem text is prone to overfitting.</strong> Query-only exceeds Direct SFT by nearly 8 percentage points on seen-composition validation accuracy, yet its OOD composition score falls to 4.60%, below even Direct SFT's 6.34%.</li>
+<li><strong>Conditioning on the base model's own information raises mean OOD accuracy.</strong> Raw-weight, which reads the base model's static weights, reaches an OOD mean of 10.58%. Using the dynamic circuit from the current inference instead raises C-HyperNet to <strong>13.14%</strong>, with closely matched scores across the two suites, 13.12% and 13.16%. It leads Query-only by 8.54 percentage points and Direct SFT by 6.80 percentage points.</li>
+<li><strong>The gains are unevenly distributed.</strong> At the family level, the advantage is concentrated in <strong>And-Or</strong>: C-HyperNet's two-suite mean is 43.00%, compared with 27.00% for Raw-weight and just 2.40% for Query-only. On <strong>Nested OR</strong>, C-HyperNet reaches 22.70%, slightly below Raw-weight's 25.90%. C-HyperNet still scores 0% on the other three composition families. The current gains therefore apply mainly to particular structures; coverage of the full range of compositions remains limited.</li>
+</ul>
+<p>We also examine performance on seen compositions and retention of atomic capabilities. All values below are equally weighted means across the two formal suites:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Method</th>
+<th scope="col" style="text-align: right;">Seen compositions (%)</th>
+<th scope="col" style="text-align: right;">Atomic tasks: before → after continued training (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct SFT</td>
+<td style="text-align: right;">65.35</td>
+<td style="text-align: right;">43.98 → 55.30</td>
+</tr>
+<tr>
+<td>Query-only</td>
+<td style="text-align: right;">74.35</td>
+<td style="text-align: right;">69.00 → 79.51</td>
+</tr>
+<tr>
+<td>Raw-weight</td>
+<td style="text-align: right;">79.86</td>
+<td style="text-align: right;">65.25 → <strong>79.56</strong></td>
+</tr>
+<tr>
+<td><strong>C-HyperNet</strong></td>
+<td style="text-align: right;"><strong>80.79</strong></td>
+<td style="text-align: right;">71.00 → 76.00</td>
+</tr>
+</tbody>
+</table></div>
+<p>C-HyperNet has the highest accuracy on both OOD and seen compositions, reaching 80.79% on the latter. Its atomic-task accuracy also rises to 76.00% after continued training, although the increase is smaller than for Query-only and Raw-weight.</p>
+<h4>Training-stage pairing-shuffle control</h4>
+<p>To verify that C-HyperNet's gains require genuine problem-to-circuit alignment rather than merely an extra conditioning token, we run a <strong>stage-2 shuffled training</strong> control (evaluated on the same two 500-problem formal suites). All five folds start from the matched atomic checkpoint with identical steps (12,000), distillation, and per-batch marginal circuit distributions, permuting only student <code>query–circuit</code> pairings during training before matched evaluation.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Training condition (C-HyperNet, seed 42)</th>
+<th scope="col">Suite 1 OOD (%)</th>
+<th scope="col" style="text-align: right;">Suite 2 OOD (%)</th>
+<th scope="col" style="text-align: right;">OOD mean (%)</th>
+<th scope="col" style="text-align: right;">And-Or / Nested OR (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matched training (main table)</td>
+<td>13.12</td>
+<td style="text-align: right;">13.16</td>
+<td style="text-align: right;"><strong>13.14</strong></td>
+<td style="text-align: right;">43.00 / 22.70</td>
+</tr>
+<tr>
+<td><strong>Stage-2 shuffled training</strong></td>
+<td>6.68</td>
+<td style="text-align: right;">7.36</td>
+<td style="text-align: right;"><strong>7.02</strong></td>
+<td style="text-align: right;">15.70 / 18.60</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Note: Stage-2 shuffled training achieves <code>0.80%</code> (<code>8/1,000</code>) on <code>And-Or-And</code>, <code>78.63%</code> on seen compositions, and <code>74.42%</code> atomic retention (vs. <code>80.79%</code> and <code>76.00%</code> matched).</em></p>
+<p>Shuffling query–circuit pairs during stage-2 training reduced mean held-out first-tactic accuracy from 13.14% to 7.02%, with the largest drop on And-Or (43.00% to 15.70%).</p>
+<p>Swapping circuit summaries within the same proof family at inference barely changed the score: 13.16% instead of 13.14%. The evidence is therefore stronger for exploiting patterns shared by related problems than for diagnosing the unique mistake in each attempt.</p>
+<h3>3.5 Extending to grid reasoning: ARC-AGI-1 and test-time fine-tuning</h3>
+<p>To test whether the approach extends beyond symbolic logic proofs, we conduct two experiments on the abstract grid-reasoning benchmark <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1911.01547">ARC-AGI-1</a> (Chollet, 2019). Our backbone is Qwen3-4B (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2505.09388">Yang et al., 2025</a>) trained on <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2404.07353">RE-ARC</a> (Hodel, 2024) data, following a grid-adaptation pipeline derived from <a target="_blank" rel="noopener noreferrer" href="https://github.com/1ytic/NVARC/blob/main/nvarc_2025.pdf">NVARC (Sorokin &amp; Puget, 2025)</a>. Direct SFT updates its parameters directly, whereas C-HyperNet freezes the backbone and generates LoRA parameters from the problem representation and a 59-dimensional circuit vector. Evaluation covers all 400 public validation tasks, comprising 419 test inputs, and uses constrained greedy decoding with voting over candidates from multiple views. The main metric is <code>selected_exact@2</code>, averaged equally across tasks: two candidates are selected for each test input, and the input is scored as correct if either candidate exactly matches the ground-truth grid. This validation set is also used for checkpoint selection.</p>
+<h4>Applying the generated LoRA directly</h4>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Method</th>
+<th scope="col" style="text-align: right;"><code>selected_exact@2</code> (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frozen base model</td>
+<td style="text-align: right;">16.375</td>
+</tr>
+<tr>
+<td>Direct SFT</td>
+<td style="text-align: right;">17.125</td>
+</tr>
+<tr>
+<td><strong>C-HyperNet</strong></td>
+<td style="text-align: right;"><strong>17.250</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>In direct inference, C-HyperNet raises accuracy from the frozen backbone's 16.375% to 17.250%, comparable to Direct SFT at 17.125%. The two adaptation methods use different training budgets, so we report the small 0.125-percentage-point difference only as a numerical observation. The main finding is that the C-HyperNet framework also transfers to visual grid reasoning beyond symbolic tasks (though isolating the circuit vector's incremental contribution over a query-only hypernetwork on ARC remains for future work).</p>
+<h4>Using the generated LoRA as a warm start for TTFT</h4>
+<p>A more revealing use is to <strong>initialize test-time fine-tuning</strong> (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1909.13231">Sun et al., 2020</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">Akyürek et al., 2025</a>) <strong>with the generated LoRA</strong>, echoing earlier evidence that hypernetwork-generated parameters can warm-start downstream fine-tuning (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2211.12485">Phang et al., 2023</a>). For a new ARC problem, HyperNet first generates a problem-specific LoRA initialization from the query and circuit. We then continue fine-tuning on the input–output examples provided with that problem. On the same supervised fine-tuned base model, we compare standard LoRA initialization with HyperNet-generated initialization; the original base model with standard initialization serves as an additional reference. All three methods use exactly the same LoRA capacity, 128 augmented training examples per task, 128 parameter updates, and the same learning rate. Only LoRA is updated at test time; both the base model and HyperNet remain frozen.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">TTFT backbone</th>
+<th scope="col">LoRA initialization</th>
+<th scope="col" style="text-align: right;"><code>selected_exact@2</code> (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Original base model</td>
+<td>Standard</td>
+<td style="text-align: right;">42.625</td>
+</tr>
+<tr>
+<td>Supervised fine-tuned base model</td>
+<td>Standard</td>
+<td style="text-align: right;">45.875</td>
+</tr>
+<tr>
+<td>Supervised fine-tuned base model</td>
+<td><strong>HyperNet-generated</strong></td>
+<td style="text-align: right;"><strong>47.875</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>With standard initialization fixed, the stronger Direct SFT backbone adds 3.25 percentage points, from 42.625% to 45.875%. Holding that stronger backbone fixed, <strong>switching to a LoRA initialization generated by C-HyperNet adds another 2.00 percentage points, from 45.875% to 47.875%</strong>. This suggests that even when direct generation cannot solve a difficult problem in one attempt, the generated parameters have already placed the model at a more favorable starting point for optimization on that task. See the <a href="ttft_results.html">supporting TTFT results record</a> for checkpoint identities, matched adaptation settings, and task-level counts.</p></section>
+<section id="analysis-1" class="article-section filled-section" aria-label="Compositional analysis: how does circuit information help generalization?"><div class="section-heading"><h2><span class="section-number">04</span> Compositional analysis: how does circuit information help generalization?</h2></div><p>The main experiments show higher OOD accuracy for C-HyperNet on unseen compositions. To understand this difference, we examine two aspects: <strong>which atomic associations can be decoded from the model representations, and how strongly selected nodes inside HyperNet functionally support compositional reasoning.</strong></p>
+<h3>4.1 Representation probes: reading atomic associations from compositional problems</h3>
+<p>We inspect three frozen representations from models trained on atomic tasks (prior to compositional fine-tuning), using the same full-token attention probe architecture fitted exclusively on atomic-task examples:</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Representation</th>
+<th scope="col">Readout location</th>
+<th scope="col">Probe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base query</td>
+<td>Final <code>ln_f</code> output, before the language-model head</td>
+<td>Full-token attention</td>
+</tr>
+<tr>
+<td>Circuit encoder</td>
+<td>MLP output plus circuit type embedding (single 1024-d token, before concatenation)</td>
+<td>Matched attention head</td>
+</tr>
+<tr>
+<td>HN query</td>
+<td>Final C-HyperNet query encoder <code>output_norm</code>, before circuit concatenation</td>
+<td>Full-token attention</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each probe is trained on atomic examples to distinguish the four basic operations: AND, OR-L, OR-R, and ID. When evaluating compositional problems, irrelevant distractor premises differ semantically from the atomic ID task (directly citing a premise to prove the goal). We therefore remove irrelevant ID distractors from the compositional problem statements and exclude ID from scoring, directly testing whether the probe identifies the relevant capabilities among AND, OR-L, and OR-R (AND is marked relevant whenever the goal contains a conjunction or the reference proof uses an AND operation; the OR direction follows the reference proof). Each of the five composition families contains 500 problems, for 2,500 problems in total.</p>
+<p>Success requires <strong>every relevant atomic capability to receive a strictly higher score than every irrelevant capability</strong>; ties fail. The table reports this atomic-association ranking success rate (%):</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Task</th>
+<th scope="col" style="text-align: right;">Base query</th>
+<th scope="col" style="text-align: right;">Circuit encoder</th>
+<th scope="col" style="text-align: right;">HN query</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>And-Or</td>
+<td style="text-align: right;">7.20</td>
+<td style="text-align: right;">33.20</td>
+<td style="text-align: right;">49.00</td>
+</tr>
+<tr>
+<td>Or-And</td>
+<td style="text-align: right;">9.40</td>
+<td style="text-align: right;">23.00</td>
+<td style="text-align: right;">16.40</td>
+</tr>
+<tr>
+<td>And-Or-And</td>
+<td style="text-align: right;">12.20</td>
+<td style="text-align: right;">29.60</td>
+<td style="text-align: right;">34.60</td>
+</tr>
+<tr>
+<td>Nested AND</td>
+<td style="text-align: right;">30.40</td>
+<td style="text-align: right;">55.20</td>
+<td style="text-align: right;">93.40</td>
+</tr>
+<tr>
+<td>Nested OR</td>
+<td style="text-align: right;">60.60</td>
+<td style="text-align: right;">65.40</td>
+<td style="text-align: right;">60.60</td>
+</tr>
+<tr>
+<td><strong>Overall (%)</strong></td>
+<td style="text-align: right;"><strong>23.96</strong></td>
+<td style="text-align: right;"><strong>41.28</strong></td>
+<td style="text-align: right;"><strong>50.80</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Under this matched attention-probe protocol, <strong>HN query reaches 50.80% overall ranking success and the Circuit encoder reaches 41.28%, both substantially above Base query at 23.96%</strong>. On And-Or—where the main OOD gain is concentrated—Base query scores 7.20%, while the Circuit encoder rises to 33.20% and HN query reaches 49.00%; on Nested AND, HN query reaches 93.40%. After atomic-stage training, both conditioning streams of C-HyperNet encode markedly clearer cross-task atomic associations than the frozen base model. Note that probes measure decodable information and do not by themselves prove how the parameter generator uses those signals during weight generation (<a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2022.cl-1.7/">Belinkov, 2022</a>). Full protocol details and raw counts are provided in the <a href="probe_results.html">probe results record</a>.</p>
+<h3>4.2 Functional evidence: effects of selected compositional nodes</h3>
+<p>While probes measure decodable atomic associations, we next test the functional contribution of selected compositional nodes inside HyperNet through ablation. We use sparse autoencoders (SAEs) (<a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2023/monosemantic-features/">Bricken et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2309.08600">Cunningham et al., 2023</a>) to decompose intermediate activations in both HyperNets, treating SAE features at specified locations as nodes. After locating candidate compositional nodes in each model, we freeze the weights, subtract the nodes' decoded contributions, regenerate LoRA parameters, and have the base model answer the same problems. Both comparisons below use models after further compositional training (with the target family held out), evaluated on the development bank (500 problems per family), matching the number of ablated nodes and the fraction removed between the two models:</p>
+<ul>
+<li><strong>And-Or:</strong> C-HyperNet's And-Or accuracy falls from 44.2% to 15.6%, a drop of <strong>28.6</strong> percentage points (64.7% relative), whereas Query-only falls from 21.2% to 12.4% (8.8 percentage points, 41.5% relative). Meanwhile, C-HyperNet's mean atomic-task accuracy declines by only 0.10 percentage points and its mean seen-composition accuracy by only 0.20 percentage points.</li>
+<li><strong>Nested OR:</strong> C-HyperNet's target accuracy falls from 22.4% to 14.6% (<strong>7.8</strong> percentage points, 34.8% relative), compared with Query-only's decline from 19.0% to 16.8% (2.2 percentage points, 11.6% relative). Here, however, C-HyperNet's mean atomic-task accuracy also declines by 1.55 percentage points (while Query-only's rises by 0.75 percentage points).</li>
+</ul>
+<p>Under matched node counts and full ablation on this development bank, the node groups identified in C-HyperNet consistently show stronger functional impact on both held-out target compositions than the matched Query-only groups—in both absolute and relative drops (64.7% vs. 41.5% on And-Or; 34.8% vs. 11.6% on Nested OR). Their selectivity differs by task: the And-Or group leaves atomic and seen-composition accuracy nearly unchanged (−0.10 and −0.20 percentage points), whereas the Nested OR group incurs a trade-off on atomic tasks (−1.55 percentage points). An important explanatory boundary remains: Sections 4.1 and 4.2 provide two separate pieces of evidence—representation probes show that atomic associations are decodable before compositional training, and node ablations show that specific HyperNet features functionally support OOD compositions afterward—but we have not yet directly traced the causal link between them, namely how signals from the circuit input drive the formation or activation of these compositional nodes and translate into the generated LoRA weights. Complete counts, relative changes, and ratios are available in the <a href="composition_nodes.html">node-intervention record</a>.</p></section>
+<section id="analysis-2" class="article-section filled-section" aria-label="Functional nodes: using HyperNet to locate nodes in the base model"><div class="section-heading"><h2><span class="section-number">05</span> Functional nodes: using HyperNet to locate nodes in the base model</h2></div><p>If HyperNet has learned to identify task-relevant internal computation from a circuit, a natural question follows: <strong>can we use HyperNet as a probe to help locate functional nodes in the base model itself?</strong></p>
+<p>The idea is straightforward: modify a candidate node in the base model's cached computational graph, recompute the circuit vector, and observe how the activations of the corresponding task nodes inside HyperNet change. These responses could indicate how important the candidate is to the target function. Ideally, this would avoid the cost of ablating each candidate and running the base model through a complete inference pass, reserving actual base-model ablations for final validation.</p>
+<p>In the current implementation, however, HyperNet reads a compressed vector of fixed length rather than the original graph. Some node and edge details are inevitably lost, and HyperNet responses alone do not yet support reliable selection. We therefore incorporate those responses into the established <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">attribution and ablation workflow</a> (Ameisen et al., 2025), testing whether <strong>joint selection</strong> can locate the base model's functional nodes more precisely than selection using that workflow alone.</p>
+<figure class="story-figure story-figure--tall" id="figure-localization">
+  <div class="figure-toolbar"><span>Figure 5 · HyperNet-assisted joint ranking</span><button class="figure-open" type="button" aria-haspopup="dialog">Expand figure <span aria-hidden="true">↗</span></button></div>
+  <a class="figure-fallback" href="assets/hypernet_assisted_localization.png" target="_blank" rel="noopener" aria-label="Open the figure at full size"><img src="assets/hypernet_assisted_localization.png" width="1073" height="1466" alt="First locate HyperNet task features, then combine base-model ablations and feature responses for joint ranking" decoding="async"></a>
+  <figcaption><p><em>Figure 5: Three steps for locating functional nodes in the base model (labeled <code>Base</code> in the figure) with HyperNet. First, identify and fix a group of task-relevant SAE features in HyperNet. Next, collect two types of evidence for each candidate node in the base model: the task effect of an actual base-model ablation, and the response of HyperNet task features after deleting the corresponding nodes from the cached graph. Finally, combine the evidence to rerank and select base-model nodes. Snowflakes indicate frozen weights; the architecture and rankings are schematic.</em></p></figcaption>
+</figure><h3>5.1 Three steps for joint selection</h3>
+<ol>
+<li><strong>Fix the HyperNet task readout group.</strong> Decompose intermediate HyperNet activations with a <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2309.08600">sparse autoencoder (SAE)</a> (Cunningham et al., 2023), then combine attribution and ablation to identify a group of HyperNet features that plays an important role in the target atomic task. Ablation subtracts the candidates' decoded contributions while preserving the reconstruction residual; HyperNet then regenerates the LoRA, and we measure the change in the base model's performance. Fix this feature group as the readout for subsequent analysis.</li>
+<li><strong>Collect two types of evidence for each base-model candidate.</strong> Candidates are sparse features extracted by the base model's MLP Transcoder, identified by layer and feature index. For each candidate, record its task effect under an actual base-model ablation using the established workflow. Separately, remove all corresponding nodes and edges from a copy of the original cached graph, recompute the circuit vector, and feed it to HyperNet with the query and model weights unchanged. Measure the normalized activation changes of the fixed SAE feature group, and construct an auxiliary ranking score from the target-task response minus a penalty for responses on other tasks.</li>
+<li><strong>Rerank jointly and validate independently without LoRA.</strong> The control route, or direct selection, chooses nodes using only base-model attribution and actual ablation effects. Joint selection adds the HyperNet readout signal within the same candidate pool, refining groups through rank fusion, intersection-first filling, or replacements that preserve the node count. Every candidate group undergoes actual base-model ablation evaluation on development data. Finally, each route fixes a group containing <strong>the same number</strong> of base-model nodes and uses fresh problems to test their effects on the <strong>original base model without any LoRA</strong>, directly measuring their contribution to the base model's own functions.</li>
+</ol>
+<h3>5.2 Metric: the functional selectivity ratio R</h3>
+<p>Successful localization should affect the intended function while limiting effects elsewhere. We characterize functional selectivity with three quantities:</p>
+<ul>
+<li><strong>Target loss L:</strong> the relative decrease in the number of correctly answered target-task problems after intervention.</li>
+<li><strong>Other-task change C:</strong> for each of the other three atomic tasks, take the <strong>absolute value</strong> of the net change in correct-answer count; sum these values and divide by the total correct-answer count on those tasks before intervention. Taking the absolute value separately prevents gains on one task from canceling losses on another.</li>
+<li><strong>Selectivity ratio R = L / C:</strong> a larger ratio indicates that the selected nodes' effects are more concentrated on the target function.</li>
+</ul>
+<blockquote>
+<p><strong>Development selection thresholds:</strong> For the HyperNet readout group, we first seek L ≥ 40% and L − C &gt; 10 percentage points. If the search still finds no qualifying group, as in the OR-R case, we choose an exploratory readout from candidates that pass the SAE fidelity check. It must have positive target loss and a positive selectivity gap, and maximize L − C; ties favor larger target loss and then smaller changes on other tasks. The group remains marked as below threshold, and its usefulness is judged independently in subsequent validation on fresh problems. For base-model node selection, the direct control prioritizes R among groups that actually impair the target task. Joint selection first prioritizes a target loss of at least 40%, then ranks by R. Direct controls do not use the new SAE readout signal introduced in this round.</p>
+</blockquote>
+<h3>5.3 Localization results on fresh problems from four atomic tasks</h3>
+<p>For AND, OR-L, OR-R, and ID, we independently validate actual base-model ablations on 100 fresh problems per task. The table reports “direct selection → joint selection.” Within each target task, the two routes ablate the same number of base-model nodes.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Target task</th>
+<th scope="col" style="text-align: right;">Target loss L (%)</th>
+<th scope="col" style="text-align: right;">Other-task change C (%)</th>
+<th scope="col" style="text-align: right;">Selectivity R</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AND</td>
+<td style="text-align: right;">32.35 → 35.29</td>
+<td style="text-align: right;">14.49 → 13.04</td>
+<td style="text-align: right;">2.23 → <strong>2.71</strong></td>
+</tr>
+<tr>
+<td>OR-L</td>
+<td style="text-align: right;">41.46 → 43.90</td>
+<td style="text-align: right;">6.29 → 5.59</td>
+<td style="text-align: right;">6.59 → <strong>7.85</strong></td>
+</tr>
+<tr>
+<td>OR-R</td>
+<td style="text-align: right;">68.00 → 52.00</td>
+<td style="text-align: right;">42.07 → 18.62</td>
+<td style="text-align: right;">1.62 → <strong>2.79</strong></td>
+</tr>
+<tr>
+<td>ID</td>
+<td style="text-align: right;">59.72 → 56.94</td>
+<td style="text-align: right;">14.81 → 8.33</td>
+<td style="text-align: right;">4.03 → <strong>6.83</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>In the current confirmation results for all four atomic tasks, joint selection consistently has a higher point estimate of R than direct selection, with the four-task mean rising from 3.62 to 5.04. The improvements take two forms. On <strong>AND</strong> and <strong>OR-L</strong>, joint selection causes greater target impairment and smaller changes on other tasks. On <strong>OR-R</strong> and <strong>ID</strong>, it trades some target impairment for a much larger reduction in effects on other tasks; for example, OR-R's C falls from 42.07% to 18.62%. See the <a href="localization_results.html">supporting results</a> for raw counts, node counts, confidence intervals, and the provenance of controls across rounds.</p></section>
+<section id="related-work" class="article-section filled-section" aria-label="Related work"><div class="section-heading"><h2><span class="section-number">06</span> Related work</h2></div><h3>6.1 Conditional parameter generation: from static weights to dynamic computation</h3>
+<p><a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=rkpACe1lx">HyperNetworks</a> (Ha et al., 2017) introduced the paradigm of using one neural network to generate the parameters of another. In contemporary model adaptation, <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2211.12485">HyperTuning (Phang et al., 2023)</a> and <a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2023.acl-long.631/">HINT (Ivison et al., 2023)</a> generate parameter-efficient modules from few-shot demonstrations or task instructions, <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Text-to-LoRA</a> (Charakorn et al., 2025) maps a natural-language task description to a LoRA in a single forward pass, while <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2603.07236">HY-WU</a> (Wu et al., 2026) generates weight updates conditioned on individual instances and applies them to image editing.</p>
+<p>Generating a LoRA for each query presents a difficult two-part learning problem: HyperNet must understand both the problem and the behavior of the particular base model to produce an appropriate update. To help with the latter, methods such as <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2512.08785v1#S3.SS3">LoFA</a> (Hao et al., 2026) and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2606.13971v3#S3.SS2">Prompt2Effect</a> (Yang et al., 2026) provide base-model weights alongside the task condition. Yet weight matrices are large, their interactions are highly nonlinear, and the weights of a frozen base model are <strong>static</strong>: they do not change with the current query. Inferring from those weights how the model will process a particular problem remains demanding.</p>
+<p>C-HyperNet uses <strong>a circuit vector extracted for each query</strong> to connect these two sides of the problem. It is much more compact than the raw weights and summarizes the active sparse features and estimated attribution flows when the base model processes the current query. HyperNet thus receives both what the problem asks and how the base model actually computed its answer, information suited to adaptation for individual queries.</p>
+<h3>6.2 Weight-space programming: from agent diagnosis and programming to learning corrections from data</h3>
+<p>We share the aim of <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Weight-Space Programming</a> (Takehi et al., 2026): to let one neural network rewrite another's parameters to improve its capabilities or make it easier to understand. Our approaches differ in what they produce and how they obtain their signal: <strong>the Qwen weight-space programming experiment found a patch to reuse, whereas C-HyperNet learns a rule for making patches.</strong></p>
+<p>The Qwen weight-editing <a target="_blank" rel="noopener noreferrer" href="https://raw.githubusercontent.com/RikiyaT/lm_understand-logs/main/exp8_math/runs/p50c/turns/t001/prompt.txt">experimental prompt</a> (Takehi et al., 2026) and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2611.18114v1#S6">iWSP</a> (Mehta et al., 2026) draw on the knowledge, reasoning, and programming abilities of closed-weight language-model agents. When a failure is clearly describable, such as Qwen repeating its reasoning until it ran out of tokens, an agent can test edits on practice problems and find one that reduces looping; once found, that edit stays in the model with no need to diagnose the loop again for every new question. When task rules can be expressed as an explicit algorithm, an agent can build an interpretable small network from scratch. In many cases, however, the cause of an error can be obscure or distributed across interacting internal features (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.04388">Turpin et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2307.13702">Lanham et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Ameisen et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Zhao et al., 2025</a>), making clear diagnostic clues difficult to formulate in advance (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>). Building small networks from scratch also has yet to demonstrate how to directly modify an existing complex black-box model.</p>
+<p>C-HyperNet instead targets settings where useful corrections may depend on the question: it uses a small hypernetwork to learn, end to end, a mapping from patterns in internal computation to temporary per-query LoRA updates using circuit summaries across many examples. During training, the supervision signal is simply whether the adapter makes the reference answer more likely—not a label identifying the faulty step—and at inference time no reference answer is needed. In the five-fold Lean evaluation (Section 3.4), mean held-out first-tactic accuracy was 4.60% for Query-only, 10.58% for Raw-weight, and 13.14% for C-HyperNet. These were comparisons among hypernetworks, not a head-to-head test against a WSP agent. In the reverse direction, the responses of HyperNet task nodes to circuit edits also provide a new tool for examining the internal mechanisms of an existing black-box base model.</p>
+<p><strong>When the distinction matters:</strong></p>
+<ul>
+<li><strong>One recurring defect:</strong> If a single lasting edit fixes the problem, the WSP approach used on Qwen has the simpler deployment; the patched model does not need an extra tracing pass for each new question (<a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>).</li>
+<li><strong>Many related problems that may need different edits:</strong> C-HyperNet can pool evidence across examples and learn corrections that nobody has explicitly described. The trade-off is up-front training and the cost of tracing each new attempt.</li>
+<li><strong>New material that should be remembered later:</strong> Muhan Zhang's <a target="_blank" rel="noopener noreferrer" href="https://elsewhere.news/en/5ycapital/astra5y-view"><em>5Y View</em></a> (<a target="_blank" rel="noopener noreferrer" href="https://mp.weixin.qq.com/s/Idwm4ab-leLJc5sWHIijEQ">original WeChat post</a>) describes another use of a learned editor: writing material into a model so it can use it after the material is removed. C-HyperNet instead generates a temporary adapter for the current question; improving a second attempt is not the same as installing a lasting memory.</li>
+</ul>
+<h3>6.3 Verification and intervention through internal computation: from judging correctness to learning updates</h3>
+<p>We share with <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2510.09312v2#S3.SS2">CRV</a> (Zhao et al., 2025) and <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2602.07080v1#S3">CodeCircuit</a> (He et al., 2026) the idea of vectorizing attribution graphs and letting a downstream model learn patterns from them. Both works also demonstrate the potential to correct some errors through local feature-activation interventions (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2510.09312v2#S4.SS4">CRV §4.4</a>, 2025 · <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2602.07080v1#S4.SS4">CodeCircuit §4.4</a>, 2026); their contributions extend beyond diagnosis alone. The central role of their learned predictors, however, is correctness verification rather than end-to-end parameter generation. C-HyperNet brings this approach into weight space: rather than stopping at verifying whether a computation is erroneous, it directly learns what updates to generate across multiple weight layers for a given computational pattern.</p>
+<h3>6.4 Looped Transformers: hidden-state iteration vs. attribution-guided weight updates</h3>
+<p>Both Looped Transformers and C-HyperNet feed signals from earlier internal computation back into subsequent reasoning rather than stopping at a single forward pass. The two approaches differ primarily in <strong>how that internal computation is summarized for the next step</strong> and <strong>whether adaptation acts on activations or on weights</strong>: a looped Transformer carries high-dimensional hidden states across iterations under shared parameters, whereas C-HyperNet condenses the first pass into an output-anchored attribution summary and generates a per-query weight update for the base model's second attempt.</p>
+<p>Regarding the internal signal supplied to downstream steps, standard and looped Transformers already compute internal activations during inference, yet those high-dimensional states are shaped to predict the next token and entangle concurrent features across layers, making them difficult for a downstream module to exploit effectively without reorganization (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2002.10689">Xu et al., 2020</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2605.09294">Ustaomeroglu &amp; Qu, 2026</a>). In Python code verification, for instance, CodeCircuit reports 51.25 AUROC when predicting errors from maximum token probability—near the 50.00 random baseline—compared with 79.89 AUROC for a classifier trained on summary statistics organized from attribution graphs (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2602.07080v1#S4">He et al., 2026, Section 4, Table 1</a>). Rather than forwarding unfiltered hidden states, C-HyperNet traces sparse cross-layer features behind the base model's initial response and compresses their activity and estimated contributions into a compact vector ahead of parameter generation (<a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Ameisen et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Zhao et al., 2025</a>).</p>
+<p>Regarding the mechanism that modifies subsequent computation, a looped Transformer shares weights across steps and updates activations, reapplying the same learned transition rule over additional passes (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2502.17416">Saunshi et al., 2025</a>). On multi-hop tasks, later steps can build on intermediate entities retrieved earlier (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2604.07822v2#A5">Kohli et al., 2026, Appendix E, Figure 11</a>), though early errors can carry over across rounds (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2609.33144v1#S5">Liang et al., 2026, Section 5</a>); keeping weights fixed also constrains adaptation when a problem demands missing parametric knowledge or modifying the underlying computation rule (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.25741">Zhu et al., 2025</a>). C-HyperNet instead shifts adaptation into weight space: conditioned on the query and the compressed attribution summary, HyperNet is trained via the adapted model's prediction loss on the reference answer to output multi-layer LoRA updates, adjusting the effective weights executed on the second pass. Unlike optimizing an adapter directly via gradients on each test instance (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">Akyürek et al., 2025</a>), parameter adaptation is amortized into a single forward pass of HyperNet, whose generated LoRA can also initialize downstream test-time fine-tuning (Section 3.5).</p>
+<p>Empirically separating the contributions of explicit attribution compression and dynamic weight generation will require comparing C-HyperNet, under matched examples, supervision, and budgets, against adapters trained on equally sized projections of the same raw activations as well as compute-matched looped baselines. Looking further ahead, controlled studies show that answer-only supervision already enables looped models to form internal status directions distinguishing live from consumed relations during multi-step traversal, with interventions altering subsequent choice (<a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2609.33144v1#S4.SS3">Liang et al., 2026, Section 4.3</a>). Identifying what training objectives and representational constraints might allow recurrent architectures to likewise extract and act on cross-layer dependency summaries internally—rather than relying on an external attribution pass—remains an open question linking both lines of work.</p></section>
+<section id="discussion" class="article-section filled-section" aria-label="Discussion and limitations"><div class="section-heading"><h2><span class="section-number">07</span> Discussion and limitations</h2></div><p>C-HyperNet connects a model's internal computation with its adaptation in three ways—offering a conceptual middle ground between static supervised fine-tuning (SFT) and gradient-based test-time fine-tuning (TTFT) by amortizing test-time adaptation into an offline-trained hypernetwork while linking mechanistic interpretability with capability improvement:</p>
+<ul>
+<li><strong>Learning corrections even when error causes are hard to describe.</strong> Providing the first-pass circuit to a hypernetwork, with correct answers as the only supervision, makes it possible to learn corrections for individual queries from large problem–answer datasets without annotations of error causes. The generated LoRA can be used directly for inference or provide a better starting point for test-time fine-tuning.</li>
+<li><strong>Using shared internal computation to support compositional OOD generalization.</strong> A compositional problem with an unfamiliar surface form may reuse computational patterns from atomic tasks, and the OOD gains on Lean support conditioning on circuits. Matched attention probes likewise show that cross-task atomic associations are far more decodable from C-HyperNet's HN query (50.80%) and Circuit encoder (41.28%) representations than from the frozen base model (23.96%).</li>
+<li><strong>Connecting adaptation and interpretability in both directions.</strong> A hypernetwork that learns to read circuits can use its internal task responses to help locate functional nodes in the base model. The higher selectivity-ratio point estimates across four atomic tasks indicate that a parameter generator trained to improve capability can also produce useful signals for mechanism analysis.</li>
+</ul>
+<h3>Current bottlenecks and next steps</h3>
+<p>This work is still exploratory, with two main bottlenecks to address next:</p>
+<ol>
+<li><strong>Extraction overhead and graph representation.</strong> Extracting a circuit for each query is computationally expensive, and summarizing it into a fixed-length vector inevitably loses fine-grained node and edge topology from the original graph—limiting low-latency deployment and leaving functional-node localization (Section 5) reliant on combining HyperNet responses with conventional ablations. Lighter-weight extraction and hypernetwork encoders that operate over richer graph representations directly are natural next steps.</li>
+<li><strong>Mechanistic validation, evaluation scope, and broader generalization.</strong> Mechanistically, we still need to trace how decodable atomic associations participate in parameter generation and translate into specific weight updates, and understand why per-query alignment matters strongly during stage-2 training (13.14% → 7.02% when permuted) whereas within-family shuffling after training barely lowers aggregate first-tactic OOD accuracy (13.16%)—reflecting evidence that is stronger for exploiting patterns shared by related problems than for diagnosing the unique mistake in each attempt. On the evaluation side, our Lean benchmark measures first-tactic exact match rather than complete proofs and compares hypernetwork variants rather than testing head-to-head against a WSP agent; proof steps partially overlap across held-out composition families, controls such as stage-2 shuffling remain single-seed, and current OOD gains concentrate in specific structures. Future work should therefore evaluate C-HyperNet on broader tasks with compute-matched baselines, non-overlapping compositions, and multi-seed validation.</li>
+</ol>
+<h3>Use of AI assistants</h3>
+<p>We used AI coding and writing assistants to help implement experiment and analysis scripts, prepare figures, and draft and polish the text. The authors directed the research design, verified all reported results, and take full responsibility for the content.</p></section>
+<section id="references" class="article-section filled-section" aria-label="References"><div class="section-heading"><h2>References</h2></div><ol>
+<li>Zhizhong Li and Derek Hoiem (2016). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1606.09282">Learning without Forgetting</a>. ECCV.</li>
+<li>David Ha, Andrew Dai, and Quoc V. Le (2017). <a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=rkpACe1lx">HyperNetworks</a>. ICLR.</li>
+<li>Richard S. Sutton (2019). <a target="_blank" rel="noopener noreferrer" href="https://www.cs.utexas.edu/~eunsol/courses/data/bitter_lesson.pdf">The Bitter Lesson</a>.</li>
+<li>François Chollet (2019). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1911.01547">On the Measure of Intelligence</a>. arXiv.</li>
+<li>Yu Sun, Xiaolong Wang, Zhuang Liu, John Miller, Alexei A. Efros, and Moritz Hardt (2020). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1909.13231">Test-Time Training with Self-Supervision for Generalization under Distribution Shifts</a>. ICML.</li>
+<li>Yilun Xu, Shengjia Zhao, Jiaming Song, Russell Stewart, and Stefano Ermon (2020). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2002.10689">A Theory of Usable Information Under Computational Constraints</a>. ICLR.</li>
+<li>Leonardo de Moura and Sebastian Ullrich (2021). <a target="_blank" rel="noopener noreferrer" href="https://doi.org/10.1007/978-3-030-79876-5_37">The Lean 4 Theorem Prover and Programming Language</a>. CADE.</li>
+<li>Edward J. Hu et al. (2022). <a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=nZeVKeeFYf9">LoRA: Low-Rank Adaptation of Large Language Models</a>. ICLR.</li>
+<li>Yonatan Belinkov (2022). <a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2022.cl-1.7/">Probing Classifiers: Promises, Shortcomings, and Advances</a>. Computational Linguistics.</li>
+<li>Jason Phang, Yi Mao, Pengcheng He, and Weizhu Chen (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2211.12485">HyperTuning: Toward Adapting Large Language Models without Back-propagation</a>. ICML.</li>
+<li>Hamish Ivison, Akshita Bhagia, Yizhong Wang, Hannaneh Hajishirzi, and Matthew E. Peters (2023). <a target="_blank" rel="noopener noreferrer" href="https://aclanthology.org/2023.acl-long.631/">HINT: Hypernetwork Instruction Tuning for Efficient Zero- &amp; Few-Shot Generalisation</a>. ACL.</li>
+<li>Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt, Noah A. Smith, and Mike Lewis (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2210.03350">Measuring and Narrowing the Compositionality Gap in Language Models</a>. EMNLP.</li>
+<li>Peter Hase, Mohit Bansal, Been Kim, and Asma Ghandeharioun (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2301.04213">Does Localization Inform Editing? Surprising Differences in Causality-Based Localization vs. Knowledge Editing in Language Models</a>. NeurIPS.</li>
+<li>Miles Turpin, Julian Michael, Ethan Perez, and Samuel R. Bowman (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.04388">Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting</a>. NeurIPS.</li>
+<li>Nouha Dziri et al. (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.18654">Faith and Fate: Limits of Transformers on Compositionality</a>. NeurIPS.</li>
+<li>Tamera Lanham et al. (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2307.13702">Measuring Faithfulness in Chain-of-Thought Reasoning</a>. arXiv.</li>
+<li>Trenton Bricken et al. (2023). <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2023/monosemantic-features/">Towards Monosemanticity: Decomposing Language Models With Dictionary Learning</a>. Transformer Circuits Thread.</li>
+<li>Hoagy Cunningham et al. (2023). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2309.08600">Sparse Autoencoders Find Highly Interpretable Features in Language Models</a>. arXiv.</li>
+<li>Jacob Dunefsky, Philippe Chlenski, and Neel Nanda (2024). <a target="_blank" rel="noopener noreferrer" href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/2b8f4db0464cc5b6e9d5e6bea4b9f308-Abstract-Conference.html">Transcoders Find Interpretable LLM Feature Circuits</a>. NeurIPS.</li>
+<li>Michael Hodel (2024). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2404.07353">Addressing the Abstraction and Reasoning Corpus via Procedural Example Generation</a>. arXiv (<a target="_blank" rel="noopener noreferrer" href="https://github.com/michaelhodel/re-arc">RE-ARC repository</a>).</li>
+<li>Aaquib Syed, Can Rager, and Arthur Conmy (2024). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2310.10348">Attribution Patching Outperforms Automated Circuit Discovery</a>. BlackboxNLP.</li>
+<li>Rujikorn Charakorn et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://proceedings.mlr.press/v267/charakorn25a.html">Text-to-LoRA: Instant Transformer Adaption</a>. ICML.</li>
+<li>Samuel Marks et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2403.19647">Sparse Feature Circuits: Discovering and Editing Interpretable Causal Graphs in Language Models</a>. ICLR.</li>
+<li>Ekin Akyürek et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">The Surprising Effectiveness of Test-Time Training for Few-Shot Learning</a>. ICML.</li>
+<li>Emmanuel Ameisen et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Circuit Tracing: Revealing Computational Graphs in Language Models</a>. Transformer Circuits Thread.</li>
+<li>Nikunj Saunshi, Nishanth Dikkala, Zhiyuan Li, Sanjiv Kumar, and Sashank J. Reddi (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2502.17416">Reasoning with Latent Thoughts: On the Power of Looped Transformers</a>. ICLR.</li>
+<li>An Yang et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2505.09388">Qwen3 Technical Report</a>. arXiv.</li>
+<li>Lifan Yuan et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2509.25123">From f(x) and g(x) to f(g(x)): LLMs Learn New Skills in RL by Composing Old Ones</a>. arXiv.</li>
+<li>Zheng Zhao et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Verifying Chain-of-Thought Reasoning via Its Computational Graph</a> (CRV). arXiv.</li>
+<li>Rui-Jie Zhu et al. (2025). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.25741">Scaling Latent Reasoning via Looped Language Models</a> (Ouro). arXiv.</li>
+<li>Ivan Sorokin and Jean-François Puget (2025). <a target="_blank" rel="noopener noreferrer" href="https://github.com/1ytic/NVARC/blob/main/nvarc_2025.pdf">NVARC Solution to ARC-AGI-2 2025</a>. NVIDIA Technical Report.</li>
+<li>Yiming Hao et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2512.08785">LoFA: Learning to Predict Personalized Priors for Fast Adaptation of Visual Generative Models</a>. CVPR.</li>
+<li>Yicheng He et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2602.07080">CodeCircuit: Toward Inferring LLM-Generated Code Correctness via Attribution Graphs</a>. arXiv.</li>
+<li>Mengxuan Wu et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2603.07236">HY-WU (Part I): An Extensible Functional Neural Memory Framework and An Instantiation in Text-Guided Image Editing</a>. arXiv.</li>
+<li>Harsh Kohli, Srinivasan Parthasarathy, Huan Sun, and Yuekun Yao (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2604.07822">Loop, Think, &amp; Generalize: Implicit Reasoning in Recurrent-Depth Transformers</a>. COLM.</li>
+<li>Yufa Zhou et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://proceedings.iclr.cc/paper_files/paper/2026/hash/7644353d580a9e027e0069d6480d971b-Abstract-Conference.html">The Geometry of Reasoning: Flowing Logics in Representation Space</a>. ICLR.</li>
+<li>Muhammed Ustaomeroglu and Guannan Qu (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2605.09294">Understanding, Predicting, and Steering LLM Behavior via Representational Effective Theory</a> (RET). arXiv.</li>
+<li>Zheng Lin et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2605.10611">Re-Triggering Safeguards within LLMs for Jailbreak Detection</a>. arXiv.</li>
+<li>Xiaomeng Yang et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2606.13971">Prompt2Effect: Training-Free Image-to-Video Model Specialization via LoRA Generation</a>. ECCV.</li>
+<li>Yang Sheng and Jie Fu (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/html/2607.18921v3#S3.SS1">Circuit Claims Depend on What Is Extracted and How It Is Compared</a>. arXiv.</li>
+<li>Jia Liang, Xi Jin, and Liangming Pan (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2609.33144">Beyond the Training Horizon: Mechanisms and Limits of Length Generalization in Looped Transformers</a>. arXiv.</li>
+<li>Rikiya Takehi, Jayden Teoh, Alex Zhang, and Omar Khattab (2026). <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Sparks of Weight-Space Programming: LLMs can natively read &amp; write neural network weights</a>. Research blog.</li>
+<li>Yash Mehta et al. (2026). <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2611.18114">Interpretable Weight-Space Programming Builds Transparent Transformers and Brain Encoding Models</a> (iWSP). arXiv.</li>
+<li>Muhan Zhang. <a target="_blank" rel="noopener noreferrer" href="https://elsewhere.news/en/5ycapital/astra5y-view"><em>5Y View</em></a>, on hypernetwork updates and knowledge internalization (<a target="_blank" rel="noopener noreferrer" href="https://mp.weixin.qq.com/s/Idwm4ab-leLJc5sWHIijEQ">original WeChat post</a>).</li>
+</ol></section>
+<section id="appendix" class="article-section filled-section" aria-label="Appendix"><div class="section-heading"><h2>Appendix</h2></div><h3>Appendix A: Key terms and definitions</h3>
+<p>This table collects the core terms used throughout the blog, their definitions in our setting, and where each concept is introduced or cited.</p>
+<div class="result-table" role="region" aria-label="Results table; scroll horizontally if needed" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Term</th>
+<th scope="col">Definition</th>
+<th scope="col">Role in this blog &amp; reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Circuit-HyperNet (C-HyperNet)</strong></td>
+<td>The two-pass adaptation framework introduced here: extracts an attribution summary from the base model's first attempt and uses a hypernetwork to generate a temporary per-query LoRA for its second attempt.</td>
+<td>Proposed method evaluated across Lean, ARC-AGI-1, and base-model node localization; Abstract, Sections 1–7</td>
+</tr>
+<tr>
+<td><strong>Base model (<code>Base</code> in figures)</strong></td>
+<td>The frozen target language model whose stored weights remain unchanged while per-query adaptation updates are applied at inference time.</td>
+<td>Frozen backbone adapted per query (atomic-SFT Lean model; RE-ARC Qwen3-4B on ARC-AGI-1); Sections 1–3</td>
+</tr>
+<tr>
+<td><strong>Circuit (local attribution graph)</strong></td>
+<td>A pruned local computational graph extracted from the base model's initial attempt on a problem, whose nodes represent sparse features, tokens, and logits, and whose edges estimate direct feature-to-feature influence via local derivatives.</td>
+<td>Captures the base model's internal computation on the current query; <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2025/attribution-graphs/methods.html">Ameisen et al., 2025</a>; Section 2.1</td>
+</tr>
+<tr>
+<td><strong>Circuit vector</strong></td>
+<td>A fixed-length summary vector computed from a problem's local attribution graph, aggregating layer-wise feature activity, attribution-flow distributions, graph connectivity, and token positions.</td>
+<td>Internal-computation summary fed into HyperNet (397 dimensions in Lean; 59 dimensions in ARC-AGI-1); <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2510.09312">Zhao et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2602.07080">He et al., 2026</a>; Section 2.1</td>
+</tr>
+<tr>
+<td><strong>HyperNet (hypernetwork)</strong></td>
+<td>A small auxiliary neural network that outputs adaptation parameters for another target model in a single forward pass.</td>
+<td>Reads <code>(query, circuit)</code> and generates per-query LoRA weights for the base model; <a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=rkpACe1lx">Ha et al., 2017</a>; Sections 1, 2.2</td>
+</tr>
+<tr>
+<td><strong>LoRA (Low-Rank Adaptation)</strong></td>
+<td>A parameter-efficient adaptation format that parameterizes a weight update as a scaled low-rank product of two small matrices, A and B, added to frozen linear layers.</td>
+<td>Per-query weight update generated by HyperNet for direct inference and TTFT warm start; <a target="_blank" rel="noopener noreferrer" href="https://openreview.net/forum?id=nZeVKeeFYf9">Hu et al., 2022</a>; Sections 2.2, 3.5</td>
+</tr>
+<tr>
+<td><strong>Transcoder</strong></td>
+<td>A pretrained sparse dictionary module that approximates an MLP layer's input-to-output mapping as sparse feature contributions plus a reconstruction residual.</td>
+<td>Decomposes the base model's feed-forward layers into sparse feature nodes for circuit extraction and node localization; <a target="_blank" rel="noopener noreferrer" href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/2b8f4db0464cc5b6e9d5e6bea4b9f308-Abstract-Conference.html">Dunefsky et al., 2024</a>; Sections 2.1, 5.1</td>
+</tr>
+<tr>
+<td><strong>SAE (Sparse Autoencoder)</strong></td>
+<td>A sparse dictionary autoencoder trained to decompose a model's intermediate activations into more interpretable features.</td>
+<td>Decomposes HyperNet's intermediate activations into candidate nodes for compositional ablations and task readouts; <a target="_blank" rel="noopener noreferrer" href="https://transformer-circuits.pub/2023/monosemantic-features/">Bricken et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2309.08600">Cunningham et al., 2023</a>; Sections 4.2, 5.1</td>
+</tr>
+<tr>
+<td><strong>Compositional OOD</strong></td>
+<td>Compositional out-of-distribution generalization: solving novel combinations of familiar atomic operations that were never encountered together during training.</td>
+<td>Central generalization test in the five-fold leave-one-composition-family-out Lean benchmark; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2210.03350">Press et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2305.18654">Dziri et al., 2023</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2509.25123">Yuan et al., 2025</a>; Abstract, Sections 1, 3.4</td>
+</tr>
+<tr>
+<td><strong>TTFT (Test-Time Fine-Tuning)</strong></td>
+<td>Updating a model's adaptation parameters at inference time using the few input–output demonstration examples provided with a single test problem.</td>
+<td>ARC-AGI-1 evaluation regime where HyperNet-generated LoRA serves as a warm-start initialization; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/1909.13231">Sun et al., 2020</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2411.07279">Akyürek et al., 2025</a>; Section 3.5</td>
+</tr>
+<tr>
+<td><strong>Functional selectivity ratio (R = L / C)</strong></td>
+<td>The ratio of target-task loss <code>L</code> (relative drop in target-task correct answers after ablating a node group) to other-task change <code>C</code> (sum of absolute net count changes across non-target tasks divided by their pre-intervention correct total).</td>
+<td>Measures how tightly a selected group of base-model nodes concentrates its effect on the target atomic task; Section 5.2</td>
+</tr>
+<tr>
+<td><strong>Weight-Space Programming (WSP / iWSP)</strong></td>
+<td>Paradigms in which a language model directly inspects, edits, or constructs neural network weights to repair specific failures or build interpretable networks.</td>
+<td>Related weight-editing and weight-synthesis paradigms contrasted with C-HyperNet's learned rules for temporary per-query updates; <a target="_blank" rel="noopener noreferrer" href="https://rikiyat.github.io/blog/weight-space-programming/">Takehi et al., 2026</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2611.18114">Mehta et al., 2026</a>; Sections 1, 6.2</td>
+</tr>
+<tr>
+<td><strong>Looped Transformer (recurrent-depth Transformer)</strong></td>
+<td>An architecture that repeatedly feeds the hidden state output by a shared Transformer block back into subsequent iterations under fixed weights to carry intermediate computation forward in activation space.</td>
+<td>Related internal-computation paradigm contrasted with output-anchored attribution and per-query weight adaptation; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2502.17416">Saunshi et al., 2025</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2604.07822">Kohli et al., 2026</a>; <a target="_blank" rel="noopener noreferrer" href="https://arxiv.org/abs/2609.33144">Liang et al., 2026</a>; Section 6.4</td>
+</tr>
+</tbody>
+</table></div></section></article>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Circuit-HyperNet</span><span>Internal computation → per-query parameter updates</span><a href="#top">Back to top ↑</a></footer>
+  <dialog id="figure-dialog" aria-labelledby="figure-dialog-title">
+    <div class="dialog-header"><h2 id="figure-dialog-title">From diagnosis to learned updates</h2><div class="dialog-actions"><button id="figure-zoom" type="button" aria-pressed="false">Actual size</button><button id="figure-close" type="button" autofocus>Close <span aria-hidden="true">×</span></button></div></div>
+    <div class="figure-scroll"><img src="assets/circuit_story_en.svg" width="1200" height="920" alt="Three scenarios connecting internal computation, model errors, and parameter updates"></div>
+  </dialog>
+</body>
+</html>

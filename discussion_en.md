@@ -1,0 +1,18 @@
+## 7. Discussion and limitations
+
+C-HyperNet connects a model's internal computation with its adaptation in three ways—offering a conceptual middle ground between static supervised fine-tuning (SFT) and gradient-based test-time fine-tuning (TTFT) by amortizing test-time adaptation into an offline-trained hypernetwork while linking mechanistic interpretability with capability improvement:
+
+- **Learning corrections even when error causes are hard to describe.** Providing the first-pass circuit to a hypernetwork, with correct answers as the only supervision, makes it possible to learn corrections for individual queries from large problem–answer datasets without annotations of error causes. The generated LoRA can be used directly for inference or provide a better starting point for test-time fine-tuning.
+- **Using shared internal computation to support compositional OOD generalization.** A compositional problem with an unfamiliar surface form may reuse computational patterns from atomic tasks, and the OOD gains on Lean support conditioning on circuits. Matched attention probes likewise show that cross-task atomic associations are far more decodable from C-HyperNet's HN query (50.80%) and Circuit encoder (41.28%) representations than from the frozen base model (23.96%).
+- **Connecting adaptation and interpretability in both directions.** A hypernetwork that learns to read circuits can use its internal task responses to help locate functional nodes in the base model. The higher selectivity-ratio point estimates across four atomic tasks indicate that a parameter generator trained to improve capability can also produce useful signals for mechanism analysis.
+
+### Current bottlenecks and next steps
+
+This work is still exploratory, with two main bottlenecks to address next:
+
+1. **Extraction overhead and graph representation.** Extracting a circuit for each query is computationally expensive, and summarizing it into a fixed-length vector inevitably loses fine-grained node and edge topology from the original graph—limiting low-latency deployment and leaving functional-node localization (Section 5) reliant on combining HyperNet responses with conventional ablations. Lighter-weight extraction and hypernetwork encoders that operate over richer graph representations directly are natural next steps.
+2. **Mechanistic validation, evaluation scope, and broader generalization.** Mechanistically, we still need to trace how decodable atomic associations participate in parameter generation and translate into specific weight updates, and understand why per-query alignment matters strongly during stage-2 training (13.14% → 7.02% when permuted) whereas within-family shuffling after training barely lowers aggregate first-tactic OOD accuracy (13.16%)—reflecting evidence that is stronger for exploiting patterns shared by related problems than for diagnosing the unique mistake in each attempt. On the evaluation side, our Lean benchmark measures first-tactic exact match rather than complete proofs and compares hypernetwork variants rather than testing head-to-head against a WSP agent; proof steps partially overlap across held-out composition families, controls such as stage-2 shuffling remain single-seed, and current OOD gains concentrate in specific structures. Future work should therefore evaluate C-HyperNet on broader tasks with compute-matched baselines, non-overlapping compositions, and multi-seed validation.
+
+### Use of AI assistants
+
+We used AI coding and writing assistants to help implement experiment and analysis scripts, prepare figures, and draft and polish the text. The authors directed the research design, verified all reported results, and take full responsibility for the content.
