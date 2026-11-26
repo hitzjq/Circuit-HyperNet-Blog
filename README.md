@@ -1,6 +1,8 @@
 # Circuit-HyperNet: Guiding parameter generation and compositional reasoning with internal computation
 
-Junqi Zhang and Jie Fu
+**Junqi Zhang** · Peking University · [zjq91573@gmail.com](mailto:zjq91573@gmail.com)
+
+**Jie Fu** (corresponding author) · IQuest Research · [jie.fu@iquestlab.com](mailto:jie.fu@iquestlab.com)
 
 [Read the full article](article_en.md) · [View the PDF](Circuit-HyperNet.pdf) · [Experiment code](https://github.com/hitzjq/Circuit-Hypernet)
 
