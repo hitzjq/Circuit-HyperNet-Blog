@@ -6,7 +6,7 @@
 
 † Corresponding author: [jie.fu@iquestlab.com](mailto:jie.fu@iquestlab.com)
 
-[Read the full article](article_en.md) · [View the PDF](Circuit-HyperNet.pdf) · [Experiment code](https://github.com/Veri-Safe/circuit-hypernet)
+[Read the full article](article_en.md) · [View the PDF](Circuit-HyperNet.pdf) · [Experiment code](https://github.com/Veri-Safe/circuit-hypernet) · [DOI 10.5281/zenodo.24566714](https://doi.org/10.5281/zenodo.24566714)
 
 To read the blog with its original layout, choose **Code → Download ZIP**, extract the archive, and open `index.html` in a browser.
 
