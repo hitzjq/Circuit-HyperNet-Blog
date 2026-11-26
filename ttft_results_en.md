@@ -20,8 +20,8 @@ The two-point improvement applies to the matched setting above. An earlier stand
 
 Each metrics file contains all 400 task scores under `score_details["selected_exact@2"]["per_task_score"]`. Averaging those scores and multiplying by 100 reproduces the corresponding percentage in the table.
 
-- [Original base model with standard initialization](https://github.com/hitzjq/Circuit-Hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/original_base/metrics.json)
-- [Direct SFT with standard initialization](https://github.com/hitzjq/Circuit-Hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/standard_initialization/metrics.json)
-- [Direct SFT with HyperNet-generated initialization](https://github.com/hitzjq/Circuit-Hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/generated_initialization/metrics.json)
+- [Original base model with standard initialization](https://github.com/Veri-Safe/circuit-hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/original_base/metrics.json)
+- [Direct SFT with standard initialization](https://github.com/Veri-Safe/circuit-hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/standard_initialization/metrics.json)
+- [Direct SFT with HyperNet-generated initialization](https://github.com/Veri-Safe/circuit-hypernet/blob/9cbd535d94c6b7a76e6b2476eecad0c1ed90d63a/experiments/arc_agi_1/results/test_time_finetuning/generated_initialization/metrics.json)
 
 These records support recomputing the three task means. Raw view predictions, per-step training traces, worker logs, and the other learning-rate runs are outside this release.

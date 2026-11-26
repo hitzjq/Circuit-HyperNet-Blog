@@ -6,7 +6,7 @@
 
 † Corresponding author: [jie.fu@iquestlab.com](mailto:jie.fu@iquestlab.com)
 
-[Download PDF](Circuit-HyperNet.pdf) · [GitHub repository](https://github.com/hitzjq/Circuit-Hypernet)
+[Download PDF](Circuit-HyperNet.pdf) · [GitHub repository](https://github.com/Veri-Safe/circuit-hypernet)
 
 ## Abstract
 
